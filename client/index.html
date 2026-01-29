@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>多人游戏平台</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ==================== 登录界面 ==================== -->
+    <div id="login-screen" class="screen">
+      <h1>🎮 游戏大厅</h1>
+      <div class="panel">
+        <input type="text" id="username-input" placeholder="输入用户名" maxlength="16">
+        <button id="login-btn">登录</button>
+      </div>
+    </div>
+
+    <!-- ==================== 大厅界面 ==================== -->
+    <div id="lobby-screen" class="screen" style="display: none;">
+      <h1>选择房间</h1>
+      <div id="room-controls">
+        <input type="text" id="new-room-name" placeholder="房间名称" maxlength="24">
+        <button id="create-btn">创建/加入</button>
+      </div>
+      <h3>可用房间：</h3>
+      <ul id="room-list">
+        <li class="empty">正在加载房间...</li>
+      </ul>
+    </div>
+
+    <!-- ==================== 房间界面 ==================== -->
+    <div id="room-screen" class="screen" style="display: none;">
+      <h1 id="room-title">房间</h1>
+
+      <!-- 游戏类型选择（仅房主可用） -->
+      <div class="game-selector">
+        <label for="game-type-selector">游戏类型：</label>
+        <select id="game-type-selector">
+          <option value="">-- 选择游戏 --</option>
+        </select>
+      </div>
+
+      <!-- 玩家列表 -->
+      <ul id="player-list">
+        <!-- 玩家动态渲染 -->
+      </ul>
+
+      <!-- 房间操作按钮 -->
+      <div id="room-actions">
+        <button id="leave-btn" class="btn-secondary">离开房间</button>
+        <button id="ready-btn" class="btn">准备</button>
+        <button id="start-btn" class="btn-primary" disabled>开始游戏</button>
+      </div>
+
+      <div id="room-status"></div>
+    </div>
+
+    <!-- ==================== 游戏内 HUD ==================== -->
+    <div id="ui-layer" style="display: none;">
+      <!-- 装饰性 HUD 角落 -->
+      <div class="hud-corner top-left">SYS_STATUS: OPTIMAL</div>
+      <div class="hud-corner top-right">SECTOR: 7G-NEON</div>
+      <div class="hud-corner bottom-left">LINK: STABLE</div>
+
+      <!-- 准心 -->
+      <div id="crosshair"></div>
+
+      <!-- 命中指示器 -->
+      <div id="hit-indicator"></div>
+
+      <!-- 血量 -->
+      <div id="health-container">
+        <div class="hud-label">VITAL SIGNS</div>
+        <div id="health-bar-bg"><div id="health-bar-fill"></div></div>
+        <div id="health-text">100</div>
+      </div>
+
+      <!-- 弹药 -->
+      <div id="ammo-container">
+        <div class="hud-label">ENERGY CORE</div>
+        <div id="ammo-count">30 / 90</div>
+        <div id="weapon-name">PLASMA RIFLE MK-IV</div>
+      </div>
+
+      <!-- 换弹提示 -->
+      <div id="reload-msg">RECHARGING CORE...</div>
+    </div>
+
+    <!-- 操作说明 -->
+    <div id="instructions" style="display: none;">
+      <p style="font-size: 36px">点击进入游戏</p>
+      <p>WASD 移动，空格跳跃，鼠标视角</p>
+      <p>左键射击，R 换弹</p>
+    </div>
+
+    <!-- 主入口 -->
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

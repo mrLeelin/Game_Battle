@@ -1,0 +1,25 @@
+{
+  "name": "multiplayer-game-platform",
+  "version": "2.0.0",
+  "description": "模块化多人在线游戏平台",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "vite",
+    "server": "node server/index.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "animejs": "^4.3.5",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "three": "^0.173.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "vite": "^6.0.11"
+  }
+}
