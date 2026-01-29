@@ -1,7 +1,7 @@
 /**
  * Socket 管理器 - 管理 Socket 连接
  */
-class SocketManager {
+export class SocketManager {
     constructor(io, playerManager, roomManager) {
         this.io = io;
         this.playerManager = playerManager;
@@ -48,5 +48,3 @@ class SocketManager {
         this.io.to(socketId).emit(event, data);
     }
 }
-
-module.exports = { SocketManager };

@@ -1,7 +1,7 @@
 /**
  * 玩家管理器 - 管理所有在线玩家数据
  */
-class PlayerManager {
+export class PlayerManager {
     constructor() {
         // socketId -> PlayerData
         this.players = new Map();
@@ -138,5 +138,3 @@ class PlayerManager {
         return this.players.size;
     }
 }
-
-module.exports = { PlayerManager };

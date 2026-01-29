@@ -1,10 +1,10 @@
 /**
  * 游戏路由器 - 根据游戏类型分发事件到对应处理器
  */
-const { GAME_EVENTS } = require('../../shared/Events.js');
-const { FPSGameHandler } = require('./fps/FPSGameHandler.js');
+import { GAME_EVENTS } from '../../shared/Events.js';
+import { FPSGameHandler } from './fps/FPSGameHandler.js';
 
-class GameRouter {
+export class GameRouter {
     constructor(io, playerManager, roomManager) {
         this.io = io;
         this.playerManager = playerManager;
@@ -59,5 +59,3 @@ class GameRouter {
         return this.handlers[gameType];
     }
 }
-
-module.exports = { GameRouter };

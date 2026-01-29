@@ -1,9 +1,9 @@
 /**
  * 大厅事件处理器
  */
-const { LOBBY_EVENTS, ROOM_EVENTS } = require('../../shared/Events.js');
+import { LOBBY_EVENTS, ROOM_EVENTS } from '../../shared/Events.js';
 
-class LobbyHandler {
+export class LobbyHandler {
     constructor(io, playerManager, roomManager) {
         this.io = io;
         this.playerManager = playerManager;
@@ -232,5 +232,3 @@ class LobbyHandler {
         this.io.emit(LOBBY_EVENTS.ROOM_LIST, this.roomManager.getRoomList());
     }
 }
-
-module.exports = { LobbyHandler };

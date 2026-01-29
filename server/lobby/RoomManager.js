@@ -1,10 +1,10 @@
 /**
  * 房间管理器 - 管理所有房间
  */
-const { ROOM } = require('../../shared/Constants.js');
-const { isValidGameType } = require('../../shared/GameTypes.js');
+import { ROOM } from '../../shared/Constants.js';
+import { isValidGameType } from '../../shared/GameTypes.js';
 
-class RoomManager {
+export class RoomManager {
     constructor() {
         // roomId -> RoomData
         this.rooms = new Map();
@@ -232,5 +232,3 @@ class RoomManager {
         return true;
     }
 }
-
-module.exports = { RoomManager };

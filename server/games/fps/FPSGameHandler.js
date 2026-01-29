@@ -1,9 +1,9 @@
 /**
  * FPS 游戏服务端处理器
  */
-const { FPS_EVENTS, GAME_EVENTS } = require('../../../shared/Events.js');
+import { FPS_EVENTS, GAME_EVENTS } from '../../../shared/Events.js';
 
-class FPSGameHandler {
+export class FPSGameHandler {
     constructor(io, playerManager, roomManager) {
         this.io = io;
         this.playerManager = playerManager;
@@ -153,5 +153,3 @@ class FPSGameHandler {
         });
     }
 }
-
-module.exports = { FPSGameHandler };

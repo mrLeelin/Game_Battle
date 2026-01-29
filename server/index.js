@@ -1,23 +1,23 @@
 /**
  * 服务端入口
  */
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
+import { Server } from 'socket.io';
+import { createServer } from 'node:http';
 
-const { SocketManager } = require('./core/SocketManager.js');
-const { PlayerManager } = require('./core/PlayerManager.js');
-const { RoomManager } = require('./lobby/RoomManager.js');
-const { LobbyHandler } = require('./lobby/LobbyHandler.js');
-const { GameRouter } = require('./games/GameRouter.js');
-const { NETWORK } = require('../shared/Constants.js');
+import { SocketManager } from './core/SocketManager.js';
+import { PlayerManager } from './core/PlayerManager.js';
+import { RoomManager } from './lobby/RoomManager.js';
+import { LobbyHandler } from './lobby/LobbyHandler.js';
+import { GameRouter } from './games/GameRouter.js';
+import { NETWORK } from '../shared/Constants.js';
 
 // Express 设置
 const app = express();
 app.use(cors());
 
-const server = http.createServer(app);
+const server = createServer(app);
 
 // Socket.io 设置
 const io = new Server(server, {
