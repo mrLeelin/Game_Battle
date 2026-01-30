@@ -1352,7 +1352,411 @@ select {
   color: var(--secondary);
 }
 
-/* ==================== 自定义弹窗 ==================== */
+/* ==================== 自定义头像系统 ==================== */
+
+/* 登录界面头像选择 */
+.login-panel {
+  flex-direction: column !important;
+  gap: 30px !important;
+  padding: 40px 50px !important;
+}
+
+.login-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 3px solid var(--primary-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  background-size: cover;
+  background-position: center;
+}
+
+.login-avatar:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 20px var(--primary-glow);
+  transform: scale(1.05);
+}
+
+.login-avatar .avatar-edit-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--primary);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.login-avatar:hover .avatar-edit-hint {
+  opacity: 1;
+}
+
+.login-avatar.has-image {
+  font-size: 0;
+}
+
+.login-avatar.has-image .avatar-emoji {
+  display: none;
+}
+
+.login-avatar-tip {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.login-input-section {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+/* 用户信息区头像 */
+.user-avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--primary-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.user-avatar-img:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px var(--primary-glow);
+  transform: scale(1.1);
+}
+
+.user-avatar-img.has-image {
+  font-size: 0;
+}
+
+.user-avatar-img .avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* 头像选择器弹窗 */
+.avatar-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.avatar-picker-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.avatar-picker-container {
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.avatar-picker-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--primary-dim);
+  min-width: 360px;
+  max-width: 500px;
+  position: relative;
+  transform: translateY(-30px) scale(0.95);
+  opacity: 0;
+  transition: all 0.3s ease-out;
+  clip-path: polygon(
+    20px 0, 100% 0,
+    100% calc(100% - 20px), calc(100% - 20px) 100%,
+    0 100%, 0 20px
+  );
+}
+
+.avatar-picker-content.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.avatar-picker-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid var(--primary);
+  opacity: 0.4;
+  clip-path: polygon(
+    20px 0, 100% 0,
+    100% calc(100% - 20px), calc(100% - 20px) 100%,
+    0 100%, 0 20px
+  );
+  pointer-events: none;
+}
+
+.avatar-picker-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+  clip-path: none;
+  z-index: 10;
+}
+
+.avatar-picker-close:hover {
+  color: var(--secondary);
+  background: transparent;
+  box-shadow: none;
+}
+
+.avatar-picker-header {
+  padding: 25px 30px 15px;
+  border-bottom: 1px solid var(--primary-dim);
+}
+
+.avatar-picker-title {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* 头像预览区 */
+.avatar-preview-section {
+  padding: 30px;
+  text-align: center;
+}
+
+.avatar-preview-wrapper {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 25px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--primary);
+  box-shadow: 0 0 30px var(--primary-glow);
+}
+
+.avatar-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-preview-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+/* 头像网格 */
+.avatar-grid-section {
+  padding: 20px 30px 30px;
+}
+
+.avatar-section-label {
+  font-family: var(--font-head);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 15px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.avatar-option {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--primary-dim);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avatar-option:hover {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.avatar-custom-actions {
+  display: flex;
+  gap: 15px;
+}
+
+/* 头像选择器按钮 */
+.avatar-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--primary-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.avatar-btn-icon {
+  font-size: 18px;
+}
+
+.avatar-btn-default {
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-main);
+  border-color: var(--primary-dim);
+}
+
+.avatar-btn-default:hover {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.avatar-btn-primary {
+  background: var(--primary);
+  color: #000;
+  border-color: var(--primary);
+}
+
+.avatar-btn-primary:hover {
+  background: #fff;
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.avatar-btn-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+.avatar-btn-secondary:hover {
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: rgba(255, 0, 85, 0.1);
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+  .login-panel {
+    padding: 30px !important;
+    width: 90% !important;
+  }
+
+  .login-avatar {
+    width: 80px;
+    height: 80px;
+    font-size: 40px;
+  }
+
+  .login-input-section {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .login-input-section input {
+    width: 100%;
+  }
+
+  .login-input-section button {
+    width: 100%;
+  }
+
+  .avatar-picker-content {
+    min-width: 300px;
+  }
+
+  .avatar-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .avatar-option {
+    width: 45px;
+    height: 45px;
+    font-size: 24px;
+  }
+
+  .avatar-custom-actions {
+    flex-direction: column;
+  }
+
+  .user-avatar-img {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+}
+
+
 
 /* 遮罩层 */
 .modal-overlay {

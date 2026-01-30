@@ -7,6 +7,8 @@ import { ROOM } from '../../shared/Constants.js';
 import { ScrollableList } from '../ui/ScrollableList.js';
 import { modal } from '../ui/Modal.js';
 import { transitionManager } from '../ui/TransitionManager.js';
+import { avatarPicker } from '../ui/AvatarPicker.js';
+import { avatarManager } from './AvatarManager.js';
 
 class LobbyUI {
     constructor() {
@@ -23,6 +25,7 @@ class LobbyUI {
         this.initScroller();
         this.bindEvents();
         this.bindLobbyEvents();
+        this.initAvatarDisplay();
         console.log('[LobbyUI] 初始化完成');
     }
 
@@ -57,6 +60,7 @@ class LobbyUI {
             loginScreen: document.getElementById('login-screen'),
             usernameInput: document.getElementById('username-input'),
             loginBtn: document.getElementById('login-btn'),
+            loginAvatar: document.getElementById('login-avatar'),
 
             // 大厅界面
             lobbyScreen: document.getElementById('lobby-screen'),
@@ -66,7 +70,9 @@ class LobbyUI {
 
             // 用户信息显示
             userName: document.getElementById('user-name'),
-            roomUserName: document.getElementById('room-user-name')
+            roomUserName: document.getElementById('room-user-name'),
+            lobbyAvatar: document.getElementById('lobby-avatar'),
+            roomAvatar: document.getElementById('room-avatar')
         };
     }
 
@@ -74,7 +80,7 @@ class LobbyUI {
      * 绑定 DOM 事件
      */
     bindEvents() {
-        const { usernameInput, loginBtn, newRoomInput, createBtn } = this.elements;
+        const { usernameInput, loginBtn, newRoomInput, createBtn, loginAvatar, lobbyAvatar, roomAvatar } = this.elements;
 
         // 登录按钮
         loginBtn?.addEventListener('click', () => this.handleLogin());
@@ -86,6 +92,21 @@ class LobbyUI {
         createBtn?.addEventListener('click', () => this.handleCreateRoom());
         newRoomInput?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.handleCreateRoom();
+        });
+
+        // 头像选择 - 登录界面
+        loginAvatar?.addEventListener('click', () => {
+            this.showAvatarPicker();
+        });
+
+        // 头像选择 - 大厅界面
+        lobbyAvatar?.addEventListener('click', () => {
+            this.showAvatarPicker();
+        });
+
+        // 头像选择 - 房间界面
+        roomAvatar?.addEventListener('click', () => {
+            this.showAvatarPicker();
         });
     }
 
@@ -147,6 +168,47 @@ class LobbyUI {
         if (this.elements.roomUserName) {
             this.elements.roomUserName.textContent = name;
         }
+    }
+
+    /**
+     * 显示头像选择器
+     */
+    showAvatarPicker() {
+        avatarPicker.show((avatar) => {
+            // 保存头像
+            avatarManager.save(avatar);
+            // 更新所有头像显示
+            this.updateAvatarDisplay();
+        });
+    }
+
+    /**
+     * 更新所有头像显示
+     */
+    updateAvatarDisplay() {
+        const { loginAvatar, lobbyAvatar, roomAvatar } = this.elements;
+
+        // 更新登录界面头像
+        if (loginAvatar) {
+            avatarManager.render(loginAvatar);
+        }
+
+        // 更新大厅界面头像
+        if (lobbyAvatar) {
+            avatarManager.render(lobbyAvatar);
+        }
+
+        // 更新房间界面头像
+        if (roomAvatar) {
+            avatarManager.render(roomAvatar);
+        }
+    }
+
+    /**
+     * 初始化头像显示
+     */
+    initAvatarDisplay() {
+        this.updateAvatarDisplay();
     }
 
     /**

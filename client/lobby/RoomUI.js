@@ -7,6 +7,7 @@ import { lobbyManager } from './LobbyManager.js';
 import { getGameList, getGameConfig } from '../../shared/GameTypes.js';
 import { ScrollableList } from '../ui/ScrollableList.js';
 import { transitionManager } from '../ui/TransitionManager.js';
+import { avatarManager } from './AvatarManager.js';
 
 class RoomUI {
     constructor() {
@@ -61,6 +62,8 @@ class RoomUI {
             startBtn: document.getElementById('start-btn'),
             leaveBtn: document.getElementById('leave-btn'),
             roomStatus: document.getElementById('room-status'),
+            // 用户头像
+            roomAvatar: document.getElementById('room-avatar'),
             // 弹幕相关元素
             danmakuContainer: document.getElementById('danmaku-container'),
             danmakuInput: document.getElementById('danmaku-input'),
@@ -274,6 +277,9 @@ class RoomUI {
             // 先准备子元素的初始状态（隐藏）
             this.prepareChildElements();
 
+            // 更新房间头像显示
+            this.updateRoomAvatar();
+
             // 显示屏幕
             this.elements.roomScreen.style.display = 'flex';
 
@@ -283,6 +289,15 @@ class RoomUI {
             });
 
             this.isVisible = true;
+        }
+    }
+
+    /**
+     * 更新房间界面头像显示
+     */
+    updateRoomAvatar() {
+        if (this.elements.roomAvatar) {
+            avatarManager.render(this.elements.roomAvatar);
         }
     }
 
