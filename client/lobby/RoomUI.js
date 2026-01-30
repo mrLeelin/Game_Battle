@@ -10,6 +10,9 @@ class RoomUI {
     constructor() {
         this.elements = {};
         this.isVisible = false;
+        // 弹幕 Y 轴位置追踪，避免重叠
+        this.danmakuTrackCount = 10;
+        this.nextTrack = 0;
     }
 
     /**
@@ -35,7 +38,11 @@ class RoomUI {
             readyBtn: document.getElementById('ready-btn'),
             startBtn: document.getElementById('start-btn'),
             leaveBtn: document.getElementById('leave-btn'),
-            roomStatus: document.getElementById('room-status')
+            roomStatus: document.getElementById('room-status'),
+            // 弹幕相关元素
+            danmakuContainer: document.getElementById('danmaku-container'),
+            danmakuInput: document.getElementById('danmaku-input'),
+            danmakuSendBtn: document.getElementById('danmaku-send-btn')
         };
     }
 
@@ -43,7 +50,7 @@ class RoomUI {
      * 绑定 DOM 事件
      */
     bindEvents() {
-        const { readyBtn, startBtn, leaveBtn, gameTypeSelector } = this.elements;
+        const { readyBtn, startBtn, leaveBtn, gameTypeSelector, danmakuSendBtn, danmakuInput } = this.elements;
 
         // 准备按钮
         readyBtn?.addEventListener('click', () => {
@@ -63,6 +70,19 @@ class RoomUI {
         // 游戏类型选择
         gameTypeSelector?.addEventListener('change', (e) => {
             lobbyManager.setGameType(e.target.value);
+        });
+
+        // 弹幕发送按钮
+        danmakuSendBtn?.addEventListener('click', () => {
+            this.handleSendDanmaku();
+        });
+
+        // 弹幕输入框回车发送
+        danmakuInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleSendDanmaku();
+            }
         });
     }
 
@@ -89,6 +109,12 @@ class RoomUI {
         // 离开房间
         eventBus.on('room:left', () => {
             this.hide();
+            this.clearDanmaku();
+        });
+
+        // 接收弹幕
+        eventBus.on('room:danmakuReceived', (data) => {
+            this.showDanmaku(data.text, data.playerName);
         });
     }
 
@@ -234,6 +260,65 @@ class RoomUI {
             this.elements.roomScreen.style.display = 'none';
             this.isVisible = false;
         }
+    }
+
+    /**
+     * 处理发送弹幕
+     */
+    handleSendDanmaku() {
+        const input = this.elements.danmakuInput;
+        if (!input) return;
+
+        const text = input.value.trim();
+        if (!text) return;
+
+        lobbyManager.sendDanmaku(text);
+        input.value = '';
+    }
+
+    /**
+     * 显示弹幕
+     * @param {string} text - 弹幕文本
+     * @param {string} playerName - 发送者名称
+     */
+    showDanmaku(text, playerName) {
+        const container = this.elements.danmakuContainer;
+        if (!container) return;
+
+        // 创建弹幕元素
+        const danmaku = document.createElement('div');
+        danmaku.className = 'danmaku-item';
+        danmaku.textContent = playerName ? `${playerName}: ${text}` : text;
+
+        // 计算 Y 轴位置（轮询分配轨道，避免重叠）
+        const trackHeight = container.offsetHeight / this.danmakuTrackCount;
+        const topPosition = this.nextTrack * trackHeight;
+        danmaku.style.top = `${topPosition}px`;
+
+        // 更新下一个轨道
+        this.nextTrack = (this.nextTrack + 1) % this.danmakuTrackCount;
+
+        // 随机动画时长（8-12秒）
+        const duration = 8 + Math.random() * 4;
+        danmaku.style.animationDuration = `${duration}s`;
+
+        container.appendChild(danmaku);
+
+        // 动画结束后移除
+        danmaku.addEventListener('animationend', () => {
+            danmaku.remove();
+        });
+    }
+
+    /**
+     * 清空所有弹幕
+     */
+    clearDanmaku() {
+        const container = this.elements.danmakuContainer;
+        if (container) {
+            container.innerHTML = '';
+        }
+        this.nextTrack = 0;
     }
 }
 

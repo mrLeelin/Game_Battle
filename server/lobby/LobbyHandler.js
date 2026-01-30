@@ -54,6 +54,11 @@ export class LobbyHandler {
         socket.on(ROOM_EVENTS.START_GAME, () => {
             this.handleStartGame(socket);
         });
+
+        // 发送弹幕
+        socket.on(ROOM_EVENTS.DANMAKU_SEND, (data) => {
+            this.handleDanmakuSend(socket, data);
+        });
     }
 
     /**
@@ -230,5 +235,34 @@ export class LobbyHandler {
      */
     broadcastRoomList() {
         this.io.emit(LOBBY_EVENTS.ROOM_LIST, this.roomManager.getRoomList());
+    }
+
+    /**
+     * 处理弹幕发送
+     * @param {Socket} socket
+     * @param {Object} data - { text: string }
+     */
+    handleDanmakuSend(socket, data) {
+        const player = this.playerManager.getPlayer(socket.id);
+        if (!player?.roomId) return;
+
+        // 校验弹幕文本
+        const text = String(data?.text || '').trim().slice(0, 50);
+        if (!text) return;
+
+        // 简单的 XSS 防护（转义 HTML 字符）
+        const safeText = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        // 广播给房间内所有玩家（包括发送者）
+        this.io.to(player.roomId).emit(ROOM_EVENTS.DANMAKU_BROADCAST, {
+            text: safeText,
+            playerName: player.name || '匿名',
+            playerId: socket.id
+        });
     }
 }

@@ -57,6 +57,11 @@ class LobbyManager {
             eventBus.emit('room:gameStarting', data);
         });
 
+        // 弹幕广播
+        network.on(ROOM_EVENTS.DANMAKU_BROADCAST, (data) => {
+            eventBus.emit('room:danmakuReceived', data);
+        });
+
         // 错误处理
         network.on(LOBBY_EVENTS.ERROR, (error) => {
             console.error('[LobbyManager] 错误:', error);
@@ -142,6 +147,17 @@ class LobbyManager {
         if (this.isInRoom && this.isHost() && this.canStartGame()) {
             network.emit(ROOM_EVENTS.START_GAME);
         }
+    }
+
+    /**
+     * 发送弹幕
+     * @param {string} text - 弹幕文本
+     */
+    sendDanmaku(text) {
+        const safeText = String(text || '').trim().slice(0, 50);
+        if (!safeText || !this.isInRoom) return;
+
+        network.emit(ROOM_EVENTS.DANMAKU_SEND, { text: safeText });
     }
 
     /**

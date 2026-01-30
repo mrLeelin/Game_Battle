@@ -28,6 +28,7 @@ export const ROOM_EVENTS = {
     SET_GAME_TYPE: 'room:setGameType',      // 房主设置游戏类型
     START_GAME: 'room:startGame',           // 房主开始游戏
     CHAT: 'room:chat',                      // 房间聊天
+    DANMAKU_SEND: 'room:danmakuSend',       // 发送弹幕
 
     // 服务端 -> 客户端
     STATE_UPDATE: 'room:stateUpdate',       // 房间状态更新（玩家列表、准备状态等）
@@ -36,7 +37,8 @@ export const ROOM_EVENTS = {
     HOST_CHANGED: 'room:hostChanged',       // 房主变更
     GAME_TYPE_CHANGED: 'room:gameTypeChanged', // 游戏类型变更
     GAME_STARTING: 'room:gameStarting',     // 游戏即将开始
-    CHAT_MESSAGE: 'room:chatMessage'        // 聊天消息
+    CHAT_MESSAGE: 'room:chatMessage',        // 聊天消息
+    DANMAKU_BROADCAST: 'room:danmakuBroadcast' // 弹幕广播
 };
 
 // ==================== 游戏通用事件 ====================

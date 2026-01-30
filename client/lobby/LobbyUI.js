@@ -186,6 +186,10 @@ class LobbyUI {
         this.hideAll();
         this.elements.lobbyScreen.style.display = 'flex';
         this.isVisible = true;
+        this.setCreateButtonEnabled(true);  // 重置创建按钮状态
+        if (this.elements.newRoomInput) {
+            this.elements.newRoomInput.value = '';  // 清空房间名输入框
+        }
         lobbyManager.requestRoomList();
     }
 

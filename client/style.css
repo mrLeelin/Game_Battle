@@ -148,7 +148,7 @@ button:disabled {
   background: rgba(0, 242, 255, 0.1);
 }
 
-.player-ready.ready {
+.player-status.ready {
   color: #00ff66;
   text-shadow: 0 0 10px #00ff66;
 }
@@ -320,5 +320,93 @@ button:disabled {
   backdrop-filter: blur(5px);
   color: #00f2ff;
   z-index: 10;
+}
+
+/* ==================== 弹幕系统 ==================== */
+#danmaku-container {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 200px);
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.danmaku-item {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 24px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow:
+    0 0 10px rgba(0, 242, 255, 0.8),
+    0 0 20px rgba(0, 242, 255, 0.4),
+    2px 2px 4px rgba(0, 0, 0, 0.8);
+  animation: danmaku-scroll 10s linear forwards;
+  pointer-events: none;
+}
+
+@keyframes danmaku-scroll {
+  from {
+    transform: translateX(100vw);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* 弹幕输入区域 */
+#danmaku-input-area {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 60;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid rgba(0, 242, 255, 0.5);
+  padding: 10px 15px;
+  backdrop-filter: blur(5px);
+}
+
+#danmaku-input {
+  width: 250px;
+  padding: 8px 15px;
+  font-size: 14px;
+  background: rgba(0, 40, 80, 0.6);
+  border: 1px solid rgba(0, 242, 255, 0.4);
+  color: #fff;
+  outline: none;
+  transition: all 0.3s;
+}
+
+#danmaku-input:focus {
+  background: rgba(0, 60, 120, 0.7);
+  border-color: #00f2ff;
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.4);
+}
+
+#danmaku-input::placeholder {
+  color: rgba(0, 242, 255, 0.5);
+}
+
+#danmaku-send-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+  background: rgba(0, 242, 255, 0.8);
+  color: #000;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+}
+
+#danmaku-send-btn:hover {
+  background: #00f2ff;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
 }
 
