@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\li182\\\\Desktop\\\\1\\\\Gemini\" -Force)",
-      "Bash(Select-Object Name, Mode)"
+      "Bash(Select-Object Name, Mode)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: 服务端改用 ES Modules 并拆分启动脚本\n\n- 服务端所有文件从 CommonJS 迁移到 ES Modules \\(import/export\\)\n- 拆分 开始游戏.bat 为独立的 开始服务器.bat 和 开始客户端.bat\n- CLAUDE.md 新增错误记录规则 \\(doc/error/\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
