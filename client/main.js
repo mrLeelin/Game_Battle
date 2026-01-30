@@ -9,6 +9,7 @@ import { lobbyManager } from './lobby/LobbyManager.js';
 import { lobbyUI } from './lobby/LobbyUI.js';
 import { roomUI } from './lobby/RoomUI.js';
 import { getGameConfig } from '../shared/GameTypes.js';
+import { modal } from './ui/Modal.js';
 
 class App {
     constructor() {
@@ -44,7 +45,7 @@ class App {
             console.log('[App] 初始化完成');
         } catch (error) {
             console.error('[App] 初始化失败:', error);
-            alert('无法连接到服务器，请稍后重试');
+            modal.alert('无法连接到服务器，请稍后重试', '连接失败');
         }
     }
 
@@ -69,7 +70,7 @@ class App {
             if (this.currentGame) {
                 this.endGame();
             }
-            alert('与服务器断开连接');
+            modal.alert('与服务器断开连接', '连接断开');
             lobbyUI.showLogin();
         });
     }
@@ -89,6 +90,9 @@ class App {
         this.state = 'game';
         this.currentGameType = gameType;
 
+        // 隐藏所有UI屏幕
+        this.hideAllScreens();
+
         try {
             // 动态加载游戏模块
             const GameClass = await this.loadGameModule(gameType);
@@ -105,6 +109,16 @@ class App {
     }
 
     /**
+     * 隐藏所有UI屏幕
+     */
+    hideAllScreens() {
+        const screens = document.querySelectorAll('.screen');
+        screens.forEach(screen => {
+            screen.style.display = 'none';
+        });
+    }
+
+    /**
      * 动态加载游戏模块
      * @param {string} gameType - 游戏类型
      * @returns {Promise<Class>} 游戏类
@@ -114,6 +128,10 @@ class App {
             case 'fps':
                 const { FPSGame } = await import('./games/fps/FPSGame.js');
                 return FPSGame;
+
+            case 'ballgame':
+                const { BallGame } = await import('./games/ballgame/BallGame.js');
+                return BallGame;
 
             case 'racing':
                 // const { RacingGame } = await import('./games/racing/RacingGame.js');

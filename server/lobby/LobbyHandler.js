@@ -8,6 +8,15 @@ export class LobbyHandler {
         this.io = io;
         this.playerManager = playerManager;
         this.roomManager = roomManager;
+        this.gameRouter = null;  // 游戏路由器引用
+    }
+
+    /**
+     * 设置游戏路由器（由 index.js 调用）
+     * @param {GameRouter} gameRouter
+     */
+    setGameRouter(gameRouter) {
+        this.gameRouter = gameRouter;
     }
 
     /**
@@ -228,6 +237,16 @@ export class LobbyHandler {
         this.io.to(roomId).emit(ROOM_EVENTS.GAME_STARTING, {
             gameType: result.gameType
         });
+
+        // 初始化游戏处理器
+        if (this.gameRouter) {
+            const handler = this.gameRouter.getHandler(result.gameType);
+            if (handler && typeof handler.initGame === 'function') {
+                const room = this.roomManager.getRoom(roomId);
+                const playerIds = Array.from(room.players);
+                handler.initGame(roomId, playerIds);
+            }
+        }
 
         this.broadcastRoomList();
     }

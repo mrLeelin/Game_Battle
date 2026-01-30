@@ -3,6 +3,7 @@
  */
 import { GAME_EVENTS } from '../../shared/Events.js';
 import { FPSGameHandler } from './fps/FPSGameHandler.js';
+import { BallGameHandler } from './ballgame/BallGameHandler.js';
 
 export class GameRouter {
     constructor(io, playerManager, roomManager) {
@@ -12,7 +13,8 @@ export class GameRouter {
 
         // 游戏处理器
         this.handlers = {
-            fps: new FPSGameHandler(io, playerManager, roomManager)
+            fps: new FPSGameHandler(io, playerManager, roomManager),
+            ballgame: new BallGameHandler(io, playerManager, roomManager)
         };
     }
 
@@ -32,6 +34,9 @@ export class GameRouter {
 
         // FPS 专用事件 - 直接绑定到 FPS 处理器
         this.handlers.fps?.bindEvents(socket);
+
+        // BallGame 专用事件
+        this.handlers.ballgame?.bindEvents(socket);
     }
 
     /**

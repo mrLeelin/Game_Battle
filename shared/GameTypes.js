@@ -35,6 +35,19 @@ export const GAME_TYPES = {
         maxPlayers: 4,
         clientModule: './games/puzzle/PuzzleGame.js',
         serverHandler: './games/puzzle/PuzzleGameHandler.js'
+    },
+    BALLGAME: {
+        id: 'ballgame',
+        name: '抢球大战',
+        description: '4队混战，抢球得分',
+        icon: '⚽',
+        minPlayers: 2,
+        maxPlayers: 8,
+        teams: 4,
+        playersPerTeam: 2,
+        gameDuration: 60,
+        clientModule: './games/ballgame/BallGame.js',
+        serverHandler: './games/ballgame/BallGameHandler.js'
     }
 };
 

@@ -36,6 +36,9 @@ const socketManager = new SocketManager(io, playerManager, roomManager);
 const lobbyHandler = new LobbyHandler(io, playerManager, roomManager);
 const gameRouter = new GameRouter(io, playerManager, roomManager);
 
+// 关联游戏路由器到大厅处理器
+lobbyHandler.setGameRouter(gameRouter);
+
 // 连接处理
 io.on('connection', (socket) => {
     console.log(`[Server] 玩家连接: ${socket.id}`);

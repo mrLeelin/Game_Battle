@@ -127,7 +127,11 @@ class RoomUI {
 
         // 游戏开始
         eventBus.on('room:gameStarting', (data) => {
-            this.hide();
+            // 立即隐藏，不等动画
+            if (this.elements.roomScreen) {
+                this.elements.roomScreen.style.display = 'none';
+            }
+            this.isVisible = false;
             eventBus.emit('game:start', data);
         });
 

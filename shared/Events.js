@@ -77,3 +77,24 @@ export const FPS_EVENTS = {
     HEALTH_UPDATE: 'fps:healthUpdate',      // 血量更新
     SCORE_UPDATE: 'fps:scoreUpdate'         // 分数更新
 };
+
+// ==================== 抢球大战专用事件 ====================
+// 仅 BallGame 使用
+export const BALLGAME_EVENTS = {
+    // 客户端 -> 服务端
+    PICKUP_BALL: 'ball:pickup',             // 捡起球
+    DROP_BALL: 'ball:drop',                 // 放下球
+    THROW_BALL: 'ball:throw',               // 投掷球
+    SCORE_BALL: 'ball:score',               // 进球得分
+
+    // 服务端 -> 客户端
+    BALL_SPAWNED: 'ball:spawned',           // 球生成
+    BALL_PICKED: 'ball:picked',             // 球被捡起
+    BALL_DROPPED: 'ball:dropped',           // 球被放下
+    BALL_THROWN: 'ball:thrown',             // 球被投掷
+    BALL_SCORED: 'ball:scored',             // 进球通知
+    BALL_STOLEN: 'ball:stolen',             // 球被偷走
+    TEAM_SCORES: 'ball:teamScores',         // 队伍分数更新
+    GAME_COUNTDOWN: 'ball:countdown',       // 倒计时更新
+    GAME_RESULT: 'ball:result'              // 游戏结果
+};
