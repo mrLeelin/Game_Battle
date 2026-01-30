@@ -1,10 +1,24 @@
+:root {
+  --primary: #00f2ff;
+  --primary-dim: rgba(0, 242, 255, 0.1);
+  --primary-glow: rgba(0, 242, 255, 0.6);
+  --secondary: #ff0055;
+  --bg-dark: #050a10;
+  --bg-panel: rgba(5, 15, 25, 0.85);
+  --text-main: #e0faff;
+  --text-muted: #8a9ba8;
+  --font-head: 'Orbitron', sans-serif;
+  --font-body: 'Rajdhani', sans-serif;
+}
+
 body {
   margin: 0;
   overflow: hidden;
-  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-body);
   user-select: none;
-  background: #00050a;
-  color: #00f2ff;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  height: 100vh;
 }
 
 canvas {
@@ -18,139 +32,957 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, #001a2a 0%, #00050a 100%);
+  background: radial-gradient(circle at center, #0b1a2a 0%, #000000 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 100;
   overflow: hidden;
+  /* animation removed here, controlled by classes */
 }
 
-/* Background grid effect for screens */
+/* ==================== 动画类定义 ==================== */
+
+/* 自定义 easing 变量 */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* ========== 1. 缩放模糊过渡 (Zoom Blur) - 登录/大厅切换 ========== */
+.anim-zoom-in {
+  animation: zoomIn 0.6s var(--ease-out-expo) forwards;
+  z-index: 110;
+}
+
+.anim-zoom-out {
+  animation: zoomOut 0.5s var(--ease-in-out-circ) forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+@keyframes zoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(20px);
+    filter: blur(15px) brightness(2);
+  }
+  40% {
+    opacity: 0.8;
+    filter: blur(5px) brightness(1.3);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0) brightness(1);
+  }
+}
+
+@keyframes zoomOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0) brightness(1);
+  }
+  50% {
+    opacity: 0.5;
+    filter: blur(8px) brightness(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3) translateY(-30px);
+    filter: blur(20px) brightness(2);
+  }
+}
+
+/* 扫描线叠加效果 */
+.anim-zoom-in::before,
+.anim-zoom-out::before {
+  animation: scanlineOverlay 0.6s ease-out forwards;
+}
+
+@keyframes scanlineOverlay {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+/* ========== 2. 滑动过渡 (Slide) - 进出房间 ========== */
+.anim-slide-in-right {
+  animation: slideInRight 0.5s var(--ease-out-expo) forwards;
+  z-index: 110;
+}
+
+.anim-slide-out-left {
+  animation: slideOutLeft 0.45s var(--ease-in-out-circ) forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.anim-slide-in-left {
+  animation: slideInLeft 0.5s var(--ease-out-expo) forwards;
+  z-index: 110;
+}
+
+.anim-slide-out-right {
+  animation: slideOutRight 0.45s var(--ease-in-out-circ) forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translateX(100%) skewX(-8deg) scale(0.95);
+    opacity: 0;
+    filter: blur(5px);
+  }
+  60% {
+    transform: translateX(-3%) skewX(2deg) scale(1.01);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateX(0) skewX(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes slideOutLeft {
+  0% {
+    transform: translateX(0) skewX(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateX(-100%) skewX(8deg) scale(0.9);
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+@keyframes slideInLeft {
+  0% {
+    transform: translateX(-100%) skewX(8deg) scale(0.95);
+    opacity: 0;
+    filter: blur(5px);
+  }
+  60% {
+    transform: translateX(3%) skewX(-2deg) scale(1.01);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateX(0) skewX(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes slideOutRight {
+  0% {
+    transform: translateX(0) skewX(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateX(100%) skewX(-8deg) scale(0.9);
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+/* 滑动时的光线拖尾效果 */
+.anim-slide-in-right::after,
+.anim-slide-in-left::after {
+  animation: trailGlow 0.5s ease-out forwards !important;
+}
+
+@keyframes trailGlow {
+  0% {
+    box-shadow: 0 0 60px 30px var(--primary-glow), inset 0 0 30px var(--primary-dim);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* ========== 3. 闪光特效 (Flash) - 强调 ========== */
+.anim-flash {
+  position: relative;
+}
+
+.anim-flash::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, var(--primary) 50%, rgba(255,255,255,0.9) 100%);
+  opacity: 0;
+  pointer-events: none;
+  animation: flashEffect 0.4s ease-out;
+  z-index: 200;
+}
+
+@keyframes flashEffect {
+  0% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* ========== 4. Glitch 故障效果 - 科幻数据传输感 ========== */
+.anim-glitch-in {
+  animation: glitchIn 0.6s steps(1) forwards;
+  z-index: 110;
+}
+
+.anim-glitch-out {
+  animation: glitchOut 0.5s steps(1) forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+@keyframes glitchIn {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  10% {
+    opacity: 1;
+    clip-path: inset(40% 0 50% 0);
+    transform: translateX(-5px);
+  }
+  20% {
+    clip-path: inset(10% 0 80% 0);
+    transform: translateX(5px);
+  }
+  30% {
+    clip-path: inset(60% 0 20% 0);
+    transform: translateX(-3px);
+  }
+  40% {
+    clip-path: inset(20% 0 60% 0);
+    transform: translateX(3px);
+  }
+  50% {
+    clip-path: inset(80% 0 5% 0);
+    transform: translateX(-2px);
+  }
+  60% {
+    clip-path: inset(5% 0 85% 0);
+    transform: translateX(2px);
+  }
+  70%, 100% {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes glitchOut {
+  0% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  20% {
+    clip-path: inset(30% 0 60% 0);
+    transform: translateX(5px);
+    opacity: 0.8;
+  }
+  40% {
+    clip-path: inset(70% 0 20% 0);
+    transform: translateX(-5px);
+  }
+  60% {
+    clip-path: inset(10% 0 80% 0);
+    transform: translateX(3px);
+    opacity: 0.5;
+  }
+  80% {
+    clip-path: inset(50% 0 40% 0);
+    transform: translateX(-3px);
+    opacity: 0.2;
+  }
+  100% {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+  }
+}
+
+/* ========== 5. Warp 扭曲效果 - 空间跳跃感 ========== */
+.anim-warp-in {
+  animation: warpIn 0.7s var(--ease-out-expo) forwards;
+  z-index: 110;
+}
+
+.anim-warp-out {
+  animation: warpOut 0.5s var(--ease-in-out-circ) forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+@keyframes warpIn {
+  0% {
+    opacity: 0;
+    transform: perspective(1000px) rotateY(-30deg) translateZ(-200px) scale(0.8);
+    filter: blur(10px) brightness(2);
+  }
+  50% {
+    opacity: 0.8;
+    transform: perspective(1000px) rotateY(5deg) translateZ(50px) scale(1.05);
+    filter: blur(2px) brightness(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1000px) rotateY(0) translateZ(0) scale(1);
+    filter: blur(0) brightness(1);
+  }
+}
+
+@keyframes warpOut {
+  0% {
+    opacity: 1;
+    transform: perspective(1000px) rotateY(0) translateZ(0) scale(1);
+    filter: blur(0) brightness(1);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(1000px) rotateY(30deg) translateZ(-300px) scale(0.7);
+    filter: blur(15px) brightness(2);
+  }
+}
+
+/* ========== 6. Scan 扫描线效果 - 屏幕启动感 ========== */
+.anim-scan-in {
+  animation: scanIn 0.8s linear forwards;
+  z-index: 110;
+  position: relative;
+  overflow: hidden;
+}
+
+.anim-scan-in::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--primary) 50%,
+    transparent 100%
+  );
+  background-size: 100% 10px;
+  animation: scanLine 0.8s linear forwards;
+  z-index: 999;
+  pointer-events: none;
+}
+
+@keyframes scanIn {
+  0% {
+    opacity: 0;
+    filter: brightness(0);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+@keyframes scanLine {
+  0% {
+    transform: translateY(-100%);
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* ========== 7. 能量脉冲边框效果 ========== */
+.anim-pulse-border {
+  position: relative;
+}
+
+.anim-pulse-border::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  background: linear-gradient(45deg, var(--primary), var(--secondary), var(--primary));
+  background-size: 300% 300%;
+  z-index: -1;
+  animation: pulseBorder 2s ease infinite;
+  filter: blur(4px);
+}
+
+@keyframes pulseBorder {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 0.8;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 1;
+  }
+}
+
+/* ========== 8. 入场元素动画 (用于内容) ========== */
+.anim-fade-up {
+  animation: fadeUp 0.5s var(--ease-out-expo) forwards;
+}
+
+.anim-fade-up-delay-1 { animation-delay: 0.1s; opacity: 0; }
+.anim-fade-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
+.anim-fade-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
+
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== 子元素入场动画系统 ========== */
+
+/* 从下方滑入 */
+.anim-slide-up {
+  opacity: 0;
+  animation: slideUp 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 从上方滑入 */
+.anim-slide-down {
+  opacity: 0;
+  animation: slideDown 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 从左侧滑入 */
+.anim-slide-from-left {
+  opacity: 0;
+  animation: slideFromLeft 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 从右侧滑入 */
+.anim-slide-from-right {
+  opacity: 0;
+  animation: slideFromRight 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(50px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 缩放弹入 */
+.anim-scale-in {
+  opacity: 0;
+  animation: scaleIn 0.4s var(--ease-out-back) forwards;
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 缩放弹入（从大到小） */
+.anim-scale-down {
+  opacity: 0;
+  animation: scaleDown 0.4s var(--ease-out-expo) forwards;
+}
+
+@keyframes scaleDown {
+  0% {
+    opacity: 0;
+    transform: scale(1.3);
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* 旋转弹入 */
+.anim-rotate-in {
+  opacity: 0;
+  animation: rotateIn 0.5s var(--ease-out-back) forwards;
+}
+
+@keyframes rotateIn {
+  0% {
+    opacity: 0;
+    transform: rotate(-10deg) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+/* 延迟类 */
+.delay-1 { animation-delay: 0.05s !important; }
+.delay-2 { animation-delay: 0.1s !important; }
+.delay-3 { animation-delay: 0.15s !important; }
+.delay-4 { animation-delay: 0.2s !important; }
+.delay-5 { animation-delay: 0.25s !important; }
+.delay-6 { animation-delay: 0.3s !important; }
+.delay-7 { animation-delay: 0.35s !important; }
+.delay-8 { animation-delay: 0.4s !important; }
+
+/* ========== 9. 霓虹呼吸效果 ========== */
+.anim-neon-breathe {
+  animation: neonBreathe 2s ease-in-out infinite;
+}
+
+@keyframes neonBreathe {
+  0%, 100% {
+    text-shadow:
+      0 0 5px var(--primary),
+      0 0 10px var(--primary),
+      0 0 20px var(--primary-glow);
+    filter: brightness(1);
+  }
+  50% {
+    text-shadow:
+      0 0 10px var(--primary),
+      0 0 20px var(--primary),
+      0 0 40px var(--primary-glow),
+      0 0 80px var(--primary-glow);
+    filter: brightness(1.2);
+  }
+}
+
+/* Background grid effect */
 .screen::before {
   content: "";
   position: absolute;
   width: 200%;
   height: 200%;
   background-image: 
-    linear-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 242, 255, 0.05) 1px, transparent 1px);
-  background-size: 50px 50px;
+    linear-gradient(var(--primary-dim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--primary-dim) 1px, transparent 1px),
+    linear-gradient(rgba(0, 242, 255, 0.3) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(0, 242, 255, 0.3) 2px, transparent 2px);
+  background-size: 60px 60px, 60px 60px, 240px 240px, 240px 240px;
+  background-position: 0 0, 0 0, 30px 30px, 30px 30px;
   transform: perspective(500px) rotateX(60deg);
-  bottom: -50%;
+  bottom: -40%;
+  left: -50%;
   z-index: -1;
-  animation: grid-move 20s linear infinite;
+  animation: grid-move 10s linear infinite;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,1) 100%);
+}
+
+/* Starfield effect */
+.screen::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+    radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
+    radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px);
+  background-size: 550px 550px, 350px 350px, 250px 250px;
+  background-position: 0 0, 40px 60px, 130px 270px;
+  z-index: -2;
+  opacity: 0.6;
+  animation: stars-move 120s linear infinite;
+  pointer-events: none;
 }
 
 @keyframes grid-move {
-  from { background-position: 0 0; }
-  to { background-position: 0 1000px; }
+  from { transform: perspective(500px) rotateX(60deg) translateY(0); }
+  to { transform: perspective(500px) rotateX(60deg) translateY(60px); }
+}
+
+@keyframes stars-move {
+  from { background-position: 0 0, 40px 60px, 130px 270px; }
+  to { background-position: 1000px 500px, 1040px 560px, 1130px 770px; }
 }
 
 .screen h1 {
-  font-size: 84px;
-  color: #00f2ff;
-  text-shadow: 0 0 20px rgba(0, 242, 255, 0.8), 0 0 40px rgba(0, 242, 255, 0.4);
-  margin-bottom: 40px;
-  letter-spacing: 10px;
-  font-weight: 900;
+  font-family: var(--font-head);
+  font-size: 72px;
+  color: #fff;
   text-transform: uppercase;
+  letter-spacing: 8px;
+  margin-bottom: 50px;
+  text-shadow:
+    0 0 10px var(--primary),
+    0 0 20px var(--primary-glow),
+    0 0 40px var(--primary-glow);
+  position: relative;
+  animation: titleBreathe 3s ease-in-out infinite;
 }
 
+@keyframes titleBreathe {
+  0%, 100% {
+    text-shadow:
+      0 0 10px var(--primary),
+      0 0 20px var(--primary-glow);
+    filter: brightness(1);
+  }
+  50% {
+    text-shadow:
+      0 0 15px var(--primary),
+      0 0 30px var(--primary-glow),
+      0 0 60px var(--primary-glow);
+    filter: brightness(1.1);
+  }
+}
+
+/* Glitch effect decoration */
+.screen h1::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 2px;
+  top: 0;
+  color: var(--secondary);
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  animation: glitch 3s infinite alternate-reverse;
+  display: none; /* Can be enabled via JS by setting data-text */
+}
+
+/* PANELS */
 .panel {
-  background: rgba(0, 20, 40, 0.7);
-  border: 1px solid #00f2ff;
-  box-shadow: 0 0 20px rgba(0, 242, 255, 0.2), inset 0 0 20px rgba(0, 242, 255, 0.1);
-  padding: 40px;
-  backdrop-filter: blur(10px);
+  background: var(--bg-panel);
+  border: 1px solid var(--primary-dim);
+  padding: 50px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 25px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  position: relative;
+  /* Tech corners */
+  clip-path: polygon(
+    20px 0, 100% 0, 
+    100% calc(100% - 20px), calc(100% - 20px) 100%, 
+    0 100%, 0 20px
+  );
+  min-width: 320px;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border: 1px solid var(--primary);
+  opacity: 0.3;
+  clip-path: polygon(
+    20px 0, 100% 0, 
+    100% calc(100% - 20px), calc(100% - 20px) 100%, 
+    0 100%, 0 20px
+  );
+  pointer-events: none;
 }
 
 #login-screen .panel,
 #room-controls,
 #room-actions {
   display: flex;
-  gap: 15px;
+  gap: 20px;
   align-items: center;
   justify-content: center;
 }
 
+/* INPUTS */
 input {
-  padding: 12px 20px;
-  font-size: 18px;
-  background: rgba(0, 40, 80, 0.5);
-  border: 1px solid #00f2ff;
+  padding: 15px 20px;
+  font-family: var(--font-body);
+  font-size: 20px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--primary-dim);
+  border-left: 3px solid var(--primary-dim);
   color: #fff;
   outline: none;
   transition: all 0.3s;
+  width: 250px;
 }
 
 input:focus {
-  background: rgba(0, 60, 120, 0.7);
-  box-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
+  background: rgba(0, 242, 255, 0.05);
+  border-color: var(--primary);
+  border-left-width: 6px;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
 }
 
+input::placeholder {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+/* BUTTONS */
 button {
-  padding: 12px 30px;
-  font-size: 18px;
-  background: #00f2ff;
-  color: #000;
-  border: none;
+  padding: 15px 40px;
+  font-family: var(--font-head);
+  font-size: 16px;
+  background: var(--primary-dim);
+  color: var(--primary);
+  border: 1px solid var(--primary);
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 2px;
-  transition: all 0.3s;
+  transition: all 0.2s;
   position: relative;
   overflow: hidden;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
 
 button:hover {
-  background: #fff;
-  box-shadow: 0 0 25px #00f2ff;
-  transform: translateY(-2px);
+  background: var(--primary);
+  color: #000;
+  box-shadow: 0 0 30px var(--primary-glow);
+  text-shadow: none;
 }
 
 button:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 button:disabled {
-  background: #333;
-  color: #666;
+  background: rgba(255, 255, 255, 0.05);
+  color: #555;
+  border-color: #333;
   box-shadow: none;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
+.btn-secondary {
+  border-color: var(--secondary);
+  color: var(--secondary);
+  background: rgba(255, 0, 85, 0.1);
+}
+
+.btn-secondary:hover {
+  background: var(--secondary);
+  box-shadow: 0 0 30px rgba(255, 0, 85, 0.6);
+}
+
+/* LISTS */
 #room-list, #player-list {
   list-style: none;
   padding: 0;
-  width: 400px;
-  max-height: 300px;
+  width: 500px;
+  max-height: 400px;
   overflow-y: auto;
-  border: 1px solid rgba(0, 242, 255, 0.3);
-  background: rgba(0, 10, 20, 0.6);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--primary-dim);
+  margin-top: 20px;
+}
+
+#room-list::-webkit-scrollbar, 
+#player-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#room-list::-webkit-scrollbar-thumb,
+#player-list::-webkit-scrollbar-thumb {
+  background: var(--primary-dim);
 }
 
 #room-list li, #player-list li {
-  padding: 15px;
-  border-bottom: 1px solid rgba(0, 242, 255, 0.1);
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: background 0.2s;
+  font-size: 18px;
 }
 
 #room-list li:hover {
-  background: rgba(0, 242, 255, 0.1);
+  background: rgba(0, 242, 255, 0.05);
+}
+
+.room-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.room-name {
+  font-weight: 700;
+  color: #fff;
+  font-size: 20px;
+}
+
+.room-status {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.room-status.running { color: var(--secondary); }
+.room-status.waiting { color: var(--primary); }
+
+.player-item {
+  font-family: var(--font-head);
+  letter-spacing: 1px;
+}
+
+.player-name.me {
+  color: var(--primary);
+  text-shadow: 0 0 10px var(--primary-glow);
 }
 
 .player-status.ready {
   color: #00ff66;
-  text-shadow: 0 0 10px #00ff66;
+}
+
+.host-tag {
+  background: var(--secondary);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  margin-left: 10px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+/* ==================== 用户信息显示 ==================== */
+.user-info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--primary-dim);
+  backdrop-filter: blur(10px);
+  z-index: 150;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.user-info::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.user-avatar {
+  font-size: 20px;
+  filter: drop-shadow(0 0 5px var(--primary-glow));
+}
+
+.user-name {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .user-info {
+    top: 10px;
+    left: 10px;
+    padding: 8px 15px;
+  }
+
+  .user-avatar {
+    font-size: 16px;
+  }
+
+  .user-name {
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+}
+
+/* ROOM SCREEN SPECIFIC */
+.game-selector {
+  margin-bottom: 20px;
+}
+
+select {
+  background: #000;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 10px 20px;
+  font-family: var(--font-body);
+  font-size: 18px;
+  outline: none;
+  cursor: pointer;
+  width: 300px;
+}
+
+#room-status {
+  margin-top: 20px;
+  font-size: 16px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  height: 20px;
 }
 
 /* GAME HUD */
@@ -164,171 +996,128 @@ button:disabled {
   background: radial-gradient(circle, transparent 60%, rgba(0, 5, 10, 0.4) 100%);
 }
 
-/* Scanline effect */
 #ui-layer::after {
   content: " ";
   display: block;
   position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+              linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
   z-index: 2;
-  background-size: 100% 4px, 3px 100%;
+  background-size: 100% 2px, 3px 100%;
   pointer-events: none;
 }
 
 .hud-label {
-  font-size: 10px;
+  font-family: var(--font-head);
+  font-size: 12px;
   letter-spacing: 2px;
-  color: rgba(0, 242, 255, 0.6);
+  color: var(--primary);
+  opacity: 0.8;
   margin-bottom: 5px;
 }
 
 .hud-corner {
   position: absolute;
-  padding: 10px;
-  font-size: 12px;
-  color: rgba(0, 242, 255, 0.4);
-  letter-spacing: 1px;
+  padding: 15px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  color: var(--primary);
+  letter-spacing: 2px;
   text-transform: uppercase;
+  opacity: 0.7;
 }
 
-.top-left { top: 20px; left: 20px; border-top: 1px solid; border-left: 1px solid; }
-.top-right { top: 20px; right: 20px; border-top: 1px solid; border-right: 1px solid; }
-.bottom-left { bottom: 20px; left: 20px; border-bottom: 1px solid; border-left: 1px solid; display: none; } /* Hide when game starts if overlapping */
+.top-left { top: 30px; left: 30px; border-top: 2px solid; border-left: 2px solid; }
+.top-right { top: 30px; right: 30px; border-top: 2px solid; border-right: 2px solid; }
 
 #crosshair {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 30px;
-  height: 30px;
+  width: 40px; height: 40px;
   z-index: 5;
 }
 
 #crosshair::before, #crosshair::after {
   content: "";
   position: absolute;
-  background: #00f2ff;
-  box-shadow: 0 0 10px #00f2ff;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
 }
 
-#crosshair::before { top: 50%; left: 0; width: 30px; height: 2px; transform: translateY(-50%); opacity: 0.5; }
-#crosshair::after { left: 50%; top: 0; width: 2px; height: 30px; transform: translateX(-50%); opacity: 0.5; }
-
-#hit-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 50px;
-  height: 50px;
-  border: 2px solid #ff0055;
-  border-radius: 50%;
-  display: none;
-  pointer-events: none;
-  z-index: 4;
-}
-
-#reload-msg {
-  position: absolute;
-  bottom: 120px;
-  right: 40px;
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffaa00;
-  text-shadow: 0 0 10px #ffaa00;
-  display: none;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  animation: blink 0.5s infinite alternate;
-}
-
-@keyframes blink {
-  from { opacity: 1; }
-  to { opacity: 0.3; }
-}
+#crosshair::before { top: 50%; left: 0; width: 40px; height: 2px; transform: translateY(-50%); opacity: 0.8; }
+#crosshair::after { left: 50%; top: 0; width: 2px; height: 40px; transform: translateX(-50%); opacity: 0.8; }
 
 #health-container {
-    position: absolute;
-    bottom: 40px;
-    left: 40px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  position: absolute;
+  bottom: 50px;
+  left: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 #health-bar-bg {
-    width: 250px;
-    height: 12px;
-    background: rgba(0, 242, 255, 0.1);
-    border: 1px solid #00f2ff;
-    padding: 2px;
-    transform: skewX(-20deg);
+  width: 300px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--primary);
+  padding: 3px;
+  transform: skewX(-20deg);
 }
 
 #health-bar-fill {
-    width: 100%;
-    height: 100%;
-    background: #00f2ff;
-    box-shadow: 0 0 15px #00f2ff;
+  width: 100%;
+  height: 100%;
+  background: var(--primary);
+  box-shadow: 0 0 20px var(--primary);
+  transition: width 0.2s ease-out;
 }
 
 #health-text {
-    font-size: 32px;
-    font-weight: 900;
-    color: #00f2ff;
-    text-shadow: 0 0 10px #00f2ff;
-    font-style: italic;
+  font-family: var(--font-head);
+  font-size: 42px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 10px var(--primary);
+  font-style: italic;
+  margin-top: -10px;
 }
 
 #ammo-container {
   position: absolute;
-  bottom: 40px;
-  right: 40px;
+  bottom: 50px;
+  right: 50px;
   text-align: right;
   transform: skewX(-10deg);
 }
 
 #ammo-count {
-  font-size: 64px;
-  font-weight: 900;
-  color: #00f2ff;
-  text-shadow: 0 0 20px #00f2ff;
+  font-family: var(--font-head);
+  font-size: 72px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 20px var(--primary-dim);
 }
 
 #weapon-name {
-  font-size: 14px;
-  letter-spacing: 5px;
-  color: rgba(0, 242, 255, 0.7);
+  font-family: var(--font-head);
+  font-size: 16px;
+  letter-spacing: 6px;
+  color: var(--primary);
   text-transform: uppercase;
+  margin-top: 5px;
 }
 
-#instructions {
-  position: absolute;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0, 5, 10, 0.8);
-  backdrop-filter: blur(5px);
-  color: #00f2ff;
-  z-index: 10;
-}
-
-/* ==================== 弹幕系统 ==================== */
+/* DANMAKU */
 #danmaku-container {
   position: absolute;
-  top: 80px;
+  top: 100px;
   left: 0;
   width: 100%;
-  height: calc(100% - 200px);
+  height: calc(100% - 250px);
   pointer-events: none;
   overflow: hidden;
   z-index: 50;
@@ -337,27 +1126,20 @@ button:disabled {
 .danmaku-item {
   position: absolute;
   white-space: nowrap;
-  font-size: 24px;
-  font-weight: bold;
+  font-family: var(--font-body);
+  font-size: 28px;
+  font-weight: 700;
   color: #fff;
-  text-shadow:
-    0 0 10px rgba(0, 242, 255, 0.8),
-    0 0 20px rgba(0, 242, 255, 0.4),
-    2px 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.5), 0 0 10px var(--primary);
   animation: danmaku-scroll 10s linear forwards;
   pointer-events: none;
 }
 
 @keyframes danmaku-scroll {
-  from {
-    transform: translateX(100vw);
-  }
-  to {
-    transform: translateX(-100%);
-  }
+  from { transform: translateX(100vw); }
+  to { transform: translateX(-100%); }
 }
 
-/* 弹幕输入区域 */
 #danmaku-input-area {
   position: absolute;
   bottom: 20px;
@@ -365,216 +1147,132 @@ button:disabled {
   display: flex;
   gap: 10px;
   z-index: 60;
-  background: rgba(0, 20, 40, 0.8);
-  border: 1px solid rgba(0, 242, 255, 0.5);
-  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--primary-dim);
+  padding: 10px;
   backdrop-filter: blur(5px);
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
 }
 
 #danmaku-input {
-  width: 250px;
+  width: 300px;
   padding: 8px 15px;
-  font-size: 14px;
-  background: rgba(0, 40, 80, 0.6);
-  border: 1px solid rgba(0, 242, 255, 0.4);
-  color: #fff;
-  outline: none;
-  transition: all 0.3s;
+  font-size: 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--primary-dim);
+  border-left: none;
 }
 
 #danmaku-input:focus {
-  background: rgba(0, 60, 120, 0.7);
-  border-color: #00f2ff;
-  box-shadow: 0 0 10px rgba(0, 242, 255, 0.4);
-}
-
-#danmaku-input::placeholder {
-  color: rgba(0, 242, 255, 0.5);
+  background: transparent;
+  box-shadow: none;
+  border-color: var(--primary);
 }
 
 #danmaku-send-btn {
-  padding: 8px 20px;
+  padding: 8px 25px;
   font-size: 14px;
-  background: rgba(0, 242, 255, 0.8);
-  color: #000;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  transition: all 0.3s;
 }
 
-#danmaku-send-btn:hover {
-  background: #00f2ff;
-  box-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
-}
-
-/* ==================== 虚拟控制器 ==================== */
+/* VIRTUAL CONTROLLER */
 .virtual-controller {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0; width: 100%; height: 100%;
   pointer-events: none;
   z-index: 1000;
   display: none;
 }
 
-/* 仅在需要虚拟控制器的设备上显示 */
-.needs-virtual-controller .virtual-controller {
-  display: block;
-}
+.needs-virtual-controller .virtual-controller { display: block; }
 
-/* 摇杆区域 */
-.joystick-zone {
-  position: absolute;
-  pointer-events: auto;
-}
+.joystick-zone { position: absolute; pointer-events: auto; }
+.joystick-zone-left { left: 0; bottom: 0; width: 40%; height: 40%; }
+.look-zone { position: absolute; top: 0; right: 0; width: 60%; height: 70%; pointer-events: auto; }
 
-.joystick-zone-left {
-  left: 0;
-  bottom: 0;
-  width: 40%;
-  height: 40%;
-}
-
-/* 视角控制区域 */
-.look-zone {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 60%;
-  height: 70%;
-  pointer-events: auto;
-}
-
-/* 动作按钮容器 */
 .action-buttons {
   position: absolute;
-  right: 20px;
-  bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  right: 30px; bottom: 30px;
+  display: flex; flex-direction: column; gap: 20px;
   pointer-events: auto;
 }
 
-/* 动作按钮 */
 .action-btn {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: rgba(0, 20, 40, 0.7);
-  border: 2px solid rgba(0, 242, 255, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
-  transition: all 0.15s;
-}
-
-.action-btn .btn-icon {
-  font-size: 28px;
-  pointer-events: none;
+  width: 70px; height: 70px;
+  border-radius: 50%; /* Keep round for ergonomics */
+  background: rgba(0, 20, 40, 0.4);
+  border: 2px solid var(--primary-dim);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  clip-path: none; /* Reset clip-path */
 }
 
 .action-btn.active {
-  background: rgba(0, 242, 255, 0.4);
-  border-color: #00f2ff;
-  transform: scale(0.9);
-  box-shadow: 0 0 25px rgba(0, 242, 255, 0.6);
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  transform: scale(0.95);
 }
 
-/* 射击按钮特殊样式 */
 .btn-fire {
-  width: 90px;
-  height: 90px;
-  background: rgba(255, 0, 85, 0.3);
-  border-color: rgba(255, 0, 85, 0.7);
+  width: 90px; height: 90px;
+  border-color: var(--secondary);
+  background: rgba(255, 0, 85, 0.1);
 }
 
 .btn-fire.active {
-  background: rgba(255, 0, 85, 0.6);
-  border-color: #ff0055;
-  box-shadow: 0 0 25px rgba(255, 0, 85, 0.6);
+  background: var(--secondary);
+  box-shadow: 0 0 30px var(--secondary);
 }
 
-/* 跳跃按钮 */
-.btn-jump {
+.btn-jump { position: absolute; right: 110px; bottom: 130px; }
+.btn-reload { position: absolute; right: 110px; bottom: 30px; width: 55px; height: 55px; }
+.btn-interact { position: absolute; right: 200px; bottom: 80px; width: 55px; height: 55px; }
+
+/* INSTRUCTIONS */
+#instructions {
   position: absolute;
-  right: 100px;
-  bottom: 120px;
+  top: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  font-family: var(--font-head);
 }
 
-/* 换弹按钮 */
-.btn-reload {
-  position: absolute;
-  right: 100px;
-  bottom: 30px;
-  width: 50px;
-  height: 50px;
-}
-
-.btn-reload .btn-icon {
-  font-size: 20px;
-}
-
-/* 互动按钮 */
-.btn-interact {
-  position: absolute;
-  right: 180px;
-  bottom: 70px;
-  width: 50px;
-  height: 50px;
-}
-
-.btn-interact .btn-icon {
-  font-size: 20px;
-}
-
-/* 横屏提示 */
-#orientation-warning {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 5, 10, 0.95);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.orientation-warning-content {
-  text-align: center;
-  color: #00f2ff;
-}
-
-.orientation-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-  animation: rotate-hint 1.5s ease-in-out infinite;
-}
-
-@keyframes rotate-hint {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(90deg); }
-}
-
-.orientation-text {
-  font-size: 18px;
+#instructions p {
+  margin: 10px 0;
+  text-transform: uppercase;
   letter-spacing: 2px;
 }
 
-/* ==================== 移动端响应式适配 ==================== */
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .screen h1 { font-size: 36px; margin-bottom: 30px; }
+  .panel { padding: 30px; width: 85%; min-width: auto; }
+  input { width: 100%; }
+  #room-list, #player-list { width: 100%; }
+  #room-controls { flex-direction: column; width: 100%; }
+  
+  #health-container { left: 20px; bottom: 90px; }
+  #health-bar-bg { width: 180px; }
+  #ammo-container { right: 20px; bottom: 90px; }
+  #ammo-count { font-size: 48px; }
+  
+  #danmaku-input-area { bottom: 10px; left: 10px; right: 10px; }
+  #danmaku-input { width: 60%; }
+}
+#instructions h2 {
+  font-size: 48px;
+  color: var(--primary);
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px var(--primary-glow);
+}
 
-/* 安全区域适配（刘海屏） */
+/* ==================== �ƶ��˲��� ==================== */
+
+/* ��ȫ�������� (������) */
 @supports (padding: env(safe-area-inset-top)) {
   .virtual-controller {
     padding-top: env(safe-area-inset-top);
@@ -584,143 +1282,770 @@ button:disabled {
   }
 }
 
-/* 移动端通用适配 */
-@media (max-width: 768px) {
-  .screen h1 {
-    font-size: 36px;
-    letter-spacing: 4px;
-    margin-bottom: 20px;
-  }
+/* ������ʾ */
+#orientation-warning {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--bg-dark);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+  padding: 20px; text-align: center;
+}
 
-  .panel {
-    padding: 20px;
-    width: 90%;
-    max-width: 350px;
-  }
+.orientation-icon {
+  font-size: 64px; margin-bottom: 20px;
+  animation: rotate-phone 2s infinite ease-in-out;
+}
 
-  input {
-    padding: 10px 15px;
-    font-size: 16px;
-    width: 100%;
-  }
+@keyframes rotate-phone {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
 
-  button {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
+.orientation-text {
+  font-family: var(--font-head);
+  font-size: 20px; color: var(--primary);
+  text-transform: uppercase; letter-spacing: 2px;
+}
 
-  #room-list, #player-list {
-    width: 90%;
-    max-width: 350px;
-  }
+/* ==================== �����б���� ==================== */
 
-  #room-controls {
-    flex-direction: column;
-    width: 90%;
-  }
+.list-refresh-indicator,
+.list-load-more-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  transition: height 0.2s;
+  height: 0;
+  color: var(--primary);
+  font-size: 14px;
+  text-transform: uppercase;
+}
 
-  #room-controls input {
-    width: 100%;
-  }
+.list-load-more-indicator {
+  height: auto;
+  padding: 10px;
+}
 
-  /* HUD 移动端适配 */
-  #health-container {
-    left: 10px;
-    bottom: 100px;
-  }
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--primary-dim);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
 
-  #health-bar-bg {
-    width: 150px;
-    height: 8px;
-  }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
-  #health-text {
-    font-size: 20px;
-  }
+.list-refresh-indicator.ready .spinner {
+  border-color: var(--secondary);
+  border-top-color: var(--secondary);
+}
 
-  #ammo-container {
-    right: 10px;
-    bottom: 100px;
-  }
+.list-refresh-indicator.ready {
+  color: var(--secondary);
+}
 
-  #ammo-count {
-    font-size: 36px;
-  }
+/* ==================== 自定义弹窗 ==================== */
 
-  #weapon-name {
-    font-size: 10px;
-  }
+/* 遮罩层 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
 
-  .hud-corner {
-    font-size: 10px;
-    padding: 5px;
-  }
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
 
-  /* 弹幕移动端适配 */
-  .danmaku-item {
-    font-size: 16px;
-  }
+/* 弹窗容器 */
+.modal-container {
+  max-width: 90%;
+  max-height: 90%;
+}
 
-  #danmaku-input-area {
-    left: 10px;
-    bottom: 10px;
-    padding: 8px 10px;
-  }
+/* 弹窗内容 */
+.modal-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--primary-dim);
+  min-width: 320px;
+  max-width: 500px;
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+  clip-path: polygon(
+    20px 0, 100% 0,
+    100% calc(100% - 20px), calc(100% - 20px) 100%,
+    0 100%, 0 20px
+  );
+}
 
-  #danmaku-input {
-    width: 150px;
-    font-size: 12px;
-    padding: 6px 10px;
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
   }
-
-  #danmaku-send-btn {
-    padding: 6px 12px;
-    font-size: 12px;
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-/* 超小屏幕适配 */
+/* 弹窗边框装饰 */
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid var(--primary);
+  opacity: 0.4;
+  clip-path: polygon(
+    20px 0, 100% 0,
+    100% calc(100% - 20px), calc(100% - 20px) 100%,
+    0 100%, 0 20px
+  );
+  pointer-events: none;
+}
+
+/* 角落装饰 */
+.modal-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border-left: 2px solid var(--primary);
+  border-top: 2px solid var(--primary);
+  pointer-events: none;
+}
+
+/* 关闭按钮 */
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+  clip-path: none;
+}
+
+.modal-close:hover {
+  color: var(--secondary);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 弹窗头部 */
+.modal-header {
+  padding: 25px 30px 15px;
+  border-bottom: 1px solid var(--primary-dim);
+}
+
+.modal-title {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* 弹窗主体 */
+.modal-body {
+  padding: 30px;
+  text-align: center;
+}
+
+.modal-message {
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--text-main);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 输入框 */
+.modal-input {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px 15px;
+  font-size: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--primary-dim);
+  border-left: 3px solid var(--primary-dim);
+  color: #fff;
+  outline: none;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  background: rgba(0, 242, 255, 0.05);
+  border-color: var(--primary);
+  border-left-width: 5px;
+}
+
+/* 加载动画 */
+.modal-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 20px auto 0;
+  border: 3px solid var(--primary-dim);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* 弹窗底部 */
+.modal-footer {
+  padding: 20px 30px 25px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  border-top: 1px solid var(--primary-dim);
+}
+
+/* 弹窗按钮 */
+.modal-btn {
+  min-width: 120px;
+  padding: 12px 30px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* 主按钮 */
+.modal-btn-primary {
+  background: var(--primary);
+  color: #000;
+  border: 1px solid var(--primary);
+}
+
+.modal-btn-primary:hover {
+  background: #fff;
+  box-shadow: 0 0 25px var(--primary-glow);
+}
+
+/* 次要按钮 */
+.modal-btn-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--text-muted);
+}
+
+.modal-btn-secondary:hover {
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: rgba(255, 0, 85, 0.1);
+  box-shadow: 0 0 15px rgba(255, 0, 85, 0.3);
+}
+
+/* 默认按钮 */
+.modal-btn-default {
+  background: var(--primary-dim);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.modal-btn-default:hover {
+  background: var(--primary);
+  color: #000;
+}
+
+/* 确认弹窗特殊样式 */
+.modal-confirm .modal-title {
+  color: var(--secondary);
+  text-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+}
+
+/* 加载弹窗 */
+.modal-loading .modal-body {
+  padding: 40px;
+}
+
+.modal-loading .modal-message {
+  margin-bottom: 10px;
+}
+
+/* 移动端适配 */
 @media (max-width: 480px) {
-  .screen h1 {
-    font-size: 28px;
-    letter-spacing: 2px;
+  .modal-content {
+    min-width: 280px;
   }
 
-  #health-bar-bg {
-    width: 100px;
+  .modal-header {
+    padding: 20px 20px 12px;
   }
 
-  #ammo-count {
-    font-size: 28px;
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .modal-message {
+    font-size: 16px;
+  }
+
+  .modal-footer {
+    padding: 15px 20px 20px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-btn {
+    width: 100%;
+    min-width: auto;
   }
 }
 
-/* 横屏模式 */
-@media (orientation: landscape) and (max-height: 500px) {
-  .screen h1 {
-    font-size: 32px;
-    margin-bottom: 15px;
+/* ==================== Toast 轻提示 ==================== */
+
+.toast-container {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-panel);
+  border: 1px solid var(--primary-dim);
+  padding: 12px 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 0.3s ease;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.hide {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.toast-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.toast-message {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+/* Toast 类型 */
+.toast-info {
+  border-color: var(--primary);
+}
+
+.toast-info .toast-icon {
+  color: var(--primary);
+}
+
+.toast-success {
+  border-color: #00ff66;
+}
+
+.toast-success .toast-icon {
+  color: #00ff66;
+  text-shadow: 0 0 10px rgba(0, 255, 102, 0.6);
+}
+
+.toast-error {
+  border-color: var(--secondary);
+}
+
+.toast-error .toast-icon {
+  color: var(--secondary);
+  text-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+}
+
+.toast-warning {
+  border-color: #ffaa00;
+}
+
+.toast-warning .toast-icon {
+  color: #ffaa00;
+  text-shadow: 0 0 10px rgba(255, 170, 0, 0.6);
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+  .toast-container {
+    top: 20px;
+    left: 10px;
+    right: 10px;
+    transform: none;
   }
 
-  #room-list, #player-list {
-    max-height: 150px;
+  .toast {
+    width: 100%;
+    justify-content: center;
   }
 }
 
-/* 触摸设备隐藏鼠标相关提示 */
-.is-touch #instructions p:nth-child(2),
-.is-touch #instructions p:nth-child(3) {
-  display: none;
+
+/* ==================== �Զ��嵯�� ==================== */
+
+/* ���ֲ� */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
 }
 
-.is-touch #instructions::after {
-  content: "使用虚拟摇杆移动，滑动屏幕转向";
-  display: block;
-  margin-top: 10px;
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
 }
 
-/* 键盘弹出时隐藏虚拟控制器 */
-.keyboard-visible .virtual-controller {
-  display: none !important;
+/* �������� */
+.modal-container {
+  max-width: 90%;
+  max-height: 90%;
+}
+
+/* �������� */
+.modal-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--primary-dim);
+  min-width: 320px;
+  max-width: 500px;
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+  clip-path: polygon(
+    20px 0, 100% 0,
+    100% calc(100% - 20px), calc(100% - 20px) 100%,
+    0 100%, 0 20px
+  );
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* �����߿�װ�� */
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid var(--primary);
+  opacity: 0.4;
+  clip-path: polygon(
+    20px 0, 100% 0,
+    100% calc(100% - 20px), calc(100% - 20px) 100%,
+    0 100%, 0 20px
+  );
+  pointer-events: none;
+}
+
+/* ����װ�� */
+.modal-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border-left: 2px solid var(--primary);
+  border-top: 2px solid var(--primary);
+  pointer-events: none;
+}
+
+/* �رհ�ť */
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+  clip-path: none;
+}
+
+.modal-close:hover {
+  color: var(--secondary);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ����ͷ�� */
+.modal-header {
+  padding: 25px 30px 15px;
+  border-bottom: 1px solid var(--primary-dim);
+}
+
+.modal-title {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* �������� */
+.modal-body {
+  padding: 30px;
+  text-align: center;
+}
+
+.modal-message {
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--text-main);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ����� */
+.modal-input {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px 15px;
+  font-size: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--primary-dim);
+  border-left: 3px solid var(--primary-dim);
+  color: #fff;
+  outline: none;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  background: rgba(0, 242, 255, 0.05);
+  border-color: var(--primary);
+  border-left-width: 5px;
+}
+
+/* ���ض��� */
+.modal-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 20px auto 0;
+  border: 3px solid var(--primary-dim);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* �����ײ� */
+.modal-footer {
+  padding: 20px 30px 25px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  border-top: 1px solid var(--primary-dim);
+}
+
+/* ������ť */
+.modal-btn {
+  min-width: 120px;
+  padding: 12px 30px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* ����ť */
+.modal-btn-primary {
+  background: var(--primary);
+  color: #000;
+  border: 1px solid var(--primary);
+}
+
+.modal-btn-primary:hover {
+  background: #fff;
+  box-shadow: 0 0 25px var(--primary-glow);
+}
+
+/* ��Ҫ��ť */
+.modal-btn-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--text-muted);
+}
+
+.modal-btn-secondary:hover {
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: rgba(255, 0, 85, 0.1);
+  box-shadow: 0 0 15px rgba(255, 0, 85, 0.3);
+}
+
+/* Ĭ�ϰ�ť */
+.modal-btn-default {
+  background: var(--primary-dim);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.modal-btn-default:hover {
+  background: var(--primary);
+  color: #000;
+}
+
+/* ȷ�ϵ���������ʽ */
+.modal-confirm .modal-title {
+  color: var(--secondary);
+  text-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+}
+
+/* ���ص��� */
+.modal-loading .modal-body {
+  padding: 40px;
+}
+
+.modal-loading .modal-message {
+  margin-bottom: 10px;
+}
+
+/* �ƶ������� */
+@media (max-width: 480px) {
+  .modal-content {
+    min-width: 280px;
+  }
+
+  .modal-header {
+    padding: 20px 20px 12px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .modal-message {
+    font-size: 16px;
+  }
+
+  .modal-footer {
+    padding: 15px 20px 20px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-btn {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+
+/* ==================== ����������չ ==================== */
+
+/* ��Ļ���� */
+.screen.fade-out {
+  animation: screenFadeOut 0.4s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes screenFadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.05); }
+}
+
+/* �����رն��� */
+.modal-content.closing {
+  animation: modalSlideOut 0.3s ease-in forwards;
+}
+
+@keyframes modalSlideOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-20px) scale(0.95); }
 }
 

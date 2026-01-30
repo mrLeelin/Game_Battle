@@ -8,12 +8,15 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <title>多人游戏平台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <!-- ==================== 登录界面 ==================== -->
     <div id="login-screen" class="screen">
-      <h1>🎮 游戏大厅</h1>
+      <h1 data-text="GAME LOBBY">GAME LOBBY</h1>
       <div class="panel">
         <input type="text" id="username-input" placeholder="输入用户名" maxlength="16">
         <button id="login-btn">登录</button>
@@ -22,7 +25,13 @@
 
     <!-- ==================== 大厅界面 ==================== -->
     <div id="lobby-screen" class="screen" style="display: none;">
-      <h1>选择房间</h1>
+      <!-- 左上角用户信息 -->
+      <div id="user-info" class="user-info">
+        <span class="user-avatar">👤</span>
+        <span id="user-name" class="user-name"></span>
+      </div>
+
+      <h1 data-text="选择房间">选择房间</h1>
       <div id="room-controls">
         <input type="text" id="new-room-name" placeholder="房间名称" maxlength="24">
         <button id="create-btn">创建/加入</button>
@@ -35,7 +44,13 @@
 
     <!-- ==================== 房间界面 ==================== -->
     <div id="room-screen" class="screen" style="display: none;">
-      <h1 id="room-title">房间</h1>
+      <!-- 左上角用户信息 -->
+      <div id="room-user-info" class="user-info">
+        <span class="user-avatar">👤</span>
+        <span id="room-user-name" class="user-name"></span>
+      </div>
+
+      <h1 id="room-title" data-text="ROOM">ROOM</h1>
 
       <!-- 游戏类型选择（仅房主可用） -->
       <div class="game-selector">
@@ -102,9 +117,9 @@
 
     <!-- 操作说明 -->
     <div id="instructions" style="display: none;">
-      <p style="font-size: 36px">点击进入游戏</p>
-      <p>WASD 移动，空格跳跃，鼠标视角</p>
-      <p>左键射击，R 换弹</p>
+      <h2 data-text="CLICK TO ENGAGE">CLICK TO ENGAGE</h2>
+      <p>WASD: MOVE | SPACE: JUMP | MOUSE: LOOK</p>
+      <p>LMB: FIRE | R: RELOAD</p>
     </div>
 
     <!-- 主入口 -->

@@ -5,6 +5,8 @@ import { eventBus } from '../core/EventBus.js';
 import { network } from '../core/Network.js';
 import { lobbyManager } from './LobbyManager.js';
 import { getGameList, getGameConfig } from '../../shared/GameTypes.js';
+import { ScrollableList } from '../ui/ScrollableList.js';
+import { transitionManager } from '../ui/TransitionManager.js';
 
 class RoomUI {
     constructor() {
@@ -13,6 +15,7 @@ class RoomUI {
         // 弹幕 Y 轴位置追踪，避免重叠
         this.danmakuTrackCount = 10;
         this.nextTrack = 0;
+        this.playerListScroller = null;
     }
 
     /**
@@ -20,10 +23,29 @@ class RoomUI {
      */
     init() {
         this.cacheElements();
+        this.initScroller();
         this.bindEvents();
         this.bindRoomEvents();
         this.renderGameTypeSelector();
         console.log('[RoomUI] 初始化完成');
+    }
+
+    /**
+     * 初始化滚动列表
+     */
+    initScroller() {
+        if (this.elements.playerList) {
+            this.playerListScroller = new ScrollableList(this.elements.playerList, {
+                onRefresh: async () => {
+                    // 模拟刷新玩家列表
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    // 实际项目中可以调用 lobbyManager.requestRoomInfo()
+                },
+                onLoadMore: async () => {
+                    return false;
+                }
+            });
+        }
     }
 
     /**
@@ -149,7 +171,9 @@ class RoomUI {
 
         // 更新房间标题
         if (this.elements.roomTitle) {
-            this.elements.roomTitle.textContent = `房间: ${state.name}`;
+            const title = `ROOM: ${state.name}`;
+            this.elements.roomTitle.textContent = title;
+            this.elements.roomTitle.setAttribute('data-text', title);
         }
 
         // 更新玩家列表
@@ -247,17 +271,79 @@ class RoomUI {
      */
     show() {
         if (this.elements.roomScreen) {
+            // 先准备子元素的初始状态（隐藏）
+            this.prepareChildElements();
+
+            // 显示屏幕
             this.elements.roomScreen.style.display = 'flex';
+
+            // 触发子元素动画
+            requestAnimationFrame(() => {
+                this.animateChildElements();
+            });
+
             this.isVisible = true;
         }
+    }
+
+    /**
+     * 准备子元素的初始隐藏状态
+     */
+    prepareChildElements() {
+        const screen = this.elements.roomScreen;
+        if (!screen) return;
+
+        const selectors = [
+            '#room-user-info',
+            '#room-title',
+            '.game-selector',
+            '#player-list',
+            '#room-actions',
+            '#room-status',
+            '#danmaku-input-area'
+        ];
+
+        selectors.forEach(selector => {
+            const el = screen.querySelector(selector);
+            if (el) {
+                el.style.opacity = '0';
+            }
+        });
+    }
+
+    /**
+     * 为房间界面的子元素添加入场动画
+     */
+    animateChildElements() {
+        const screen = this.elements.roomScreen;
+        if (!screen) return;
+
+        transitionManager.animateChildren([
+            { selector: '#room-user-info', animation: 'slideFromLeft', delay: 0 },
+            { selector: '#room-title', animation: 'slideDown', delay: 50 },
+            { selector: '.game-selector', animation: 'scaleIn', delay: 150 },
+            { selector: '#player-list', animation: 'slideUp', delay: 250 },
+            { selector: '#room-actions', animation: 'slideUp', delay: 350 },
+            { selector: '#room-status', animation: 'fadeUp', delay: 450 },
+            { selector: '#danmaku-input-area', animation: 'slideUp', delay: 550 }
+        ], screen);
     }
 
     /**
      * 隐藏房间界面
      */
     hide() {
-        if (this.elements.roomScreen) {
-            this.elements.roomScreen.style.display = 'none';
+        if (this.elements.roomScreen && this.elements.roomScreen.style.display !== 'none') {
+            // 使用淡出动画（不使用整体横移）
+            this.elements.roomScreen.classList.add('anim-zoom-out');
+
+            const onEnd = () => {
+                this.elements.roomScreen.style.display = 'none';
+                this.elements.roomScreen.classList.remove('anim-zoom-out');
+                this.elements.roomScreen.removeEventListener('animationend', onEnd);
+            };
+            this.elements.roomScreen.addEventListener('animationend', onEnd);
+
             this.isVisible = false;
         }
     }
