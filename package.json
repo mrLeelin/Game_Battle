@@ -12,25 +12,27 @@
     "mcp": "node agent/mcp-server/index.js"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
     "animejs": "^4.3.5",
+    "bitecs": "^0.3.40",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "gamecontroller.js": "^1.5.0",
+    "howler": "^2.2.4",
+    "lil-gui": "^0.19.2",
+    "postprocessing": "^6.36.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "stats.js": "^0.17.0",
     "three": "^0.173.0",
-    "@dimforge/rapier3d-compat": "^0.14.0",
-    "yuka": "^0.7.8",
-    "howler": "^2.2.4",
-    "postprocessing": "^6.36.0",
     "three-mesh-bvh": "^0.7.8",
     "troika-three-text": "^0.49.1",
-    "gamecontroller.js": "^1.5.0",
-    "lil-gui": "^0.19.2",
-    "stats.js": "^0.17.0",
-    "bitecs": "^0.3.40"
+    "yuka": "^0.7.8"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "nipplejs": "^0.10.2",
+    "postcss-px-to-viewport": "^1.1.1",
     "vite": "^6.0.11"
   }
 }
