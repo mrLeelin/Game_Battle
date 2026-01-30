@@ -198,6 +198,7 @@ export class RoomManager {
                 players.push({
                     id: player.id,
                     name: player.name,
+                    avatar: player.avatar || { type: 'emoji', data: '👤' },
                     ready: player.ready
                 });
             }

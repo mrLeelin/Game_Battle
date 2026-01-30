@@ -225,7 +225,20 @@ class RoomUI {
             const isHost = player.id === hostId;
             const isMe = player.id === network.id;
 
+            // 生成头像 HTML
+            let avatarHTML = '';
+            if (player.avatar) {
+                if (player.avatar.type === 'emoji') {
+                    avatarHTML = `<span class="player-avatar has-emoji">${player.avatar.data}</span>`;
+                } else if (player.avatar.type === 'image') {
+                    avatarHTML = `<span class="player-avatar has-image" style="background-image: url(${player.avatar.data})"></span>`;
+                }
+            } else {
+                avatarHTML = '<span class="player-avatar has-emoji">👤</span>';
+            }
+
             li.innerHTML = `
+                ${avatarHTML}
                 <span class="player-name ${isMe ? 'me' : ''}">
                     ${player.name}
                     ${isHost ? '<span class="host-tag">房主</span>' : ''}

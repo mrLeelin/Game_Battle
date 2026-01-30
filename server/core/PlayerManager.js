@@ -16,6 +16,7 @@ export class PlayerManager {
         const player = {
             id: socketId,
             name: `玩家-${socketId.slice(0, 4)}`,
+            avatar: { type: 'emoji', data: '👤' },  // 默认头像
             roomId: null,
             ready: false,
             // 游戏内数据
@@ -69,6 +70,36 @@ export class PlayerManager {
         const player = this.players.get(socketId);
         if (player) {
             player.name = String(name || '').trim().slice(0, 16) || player.name;
+        }
+    }
+
+    /**
+     * 设置玩家头像
+     * @param {string} socketId
+     * @param {Object} avatar - { type: 'emoji'|'image', data: string }
+     */
+    setPlayerAvatar(socketId, avatar) {
+        const player = this.players.get(socketId);
+        if (player && avatar) {
+            // 验证头像格式
+            if (avatar.type === 'emoji' && typeof avatar.data === 'string') {
+                player.avatar = {
+                    type: 'emoji',
+                    data: avatar.data.slice(0, 10)  // 限制 emoji 长度
+                };
+                console.log(`[PlayerManager] 玩家 ${socketId} 设置 emoji 头像`);
+            } else if (avatar.type === 'image' && typeof avatar.data === 'string') {
+                // 限制 base64 图片大小（约 500KB）
+                if (avatar.data.length <= 500000) {
+                    player.avatar = {
+                        type: 'image',
+                        data: avatar.data
+                    };
+                    console.log(`[PlayerManager] 玩家 ${socketId} 设置图片头像 (${avatar.data.length} 字符)`);
+                } else {
+                    console.warn(`[PlayerManager] 玩家 ${socketId} 图片头像过大: ${avatar.data.length} 字符`);
+                }
+            }
         }
     }
 

@@ -8,6 +8,7 @@
 export const LOBBY_EVENTS = {
     // 客户端 -> 服务端
     SET_USERNAME: 'lobby:setUsername',      // 设置用户名
+    SET_AVATAR: 'lobby:setAvatar',          // 设置头像
     GET_ROOM_LIST: 'lobby:getRoomList',     // 请求房间列表
     CREATE_ROOM: 'lobby:createRoom',        // 创建房间
     JOIN_ROOM: 'lobby:joinRoom',            // 加入房间

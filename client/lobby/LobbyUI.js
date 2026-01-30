@@ -175,8 +175,8 @@ class LobbyUI {
      */
     showAvatarPicker() {
         avatarPicker.show((avatar) => {
-            // 保存头像
-            avatarManager.save(avatar);
+            // 保存头像并同步到服务端
+            lobbyManager.updateAvatar(avatar);
             // 更新所有头像显示
             this.updateAvatarDisplay();
         });

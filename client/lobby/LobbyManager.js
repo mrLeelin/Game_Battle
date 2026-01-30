@@ -7,6 +7,7 @@ import { eventBus } from '../core/EventBus.js';
 import { LOBBY_EVENTS, ROOM_EVENTS } from '../../shared/Events.js';
 import { ROOM } from '../../shared/Constants.js';
 import { getGameList } from '../../shared/GameTypes.js';
+import { avatarManager } from './AvatarManager.js';
 
 class LobbyManager {
     constructor() {
@@ -38,6 +39,8 @@ class LobbyManager {
         network.on(LOBBY_EVENTS.JOIN_SUCCESS, (data) => {
             this.currentRoom = data.room;
             this.isInRoom = true;
+            // 加入房间后同步头像
+            this.syncAvatar();
             eventBus.emit('lobby:joinedRoom', data);
         });
 
@@ -80,6 +83,28 @@ class LobbyManager {
         }
         this.username = safeName;
         network.emit(LOBBY_EVENTS.SET_USERNAME, safeName);
+
+        // 同时发送当前头像
+        this.syncAvatar();
+    }
+
+    /**
+     * 同步头像到服务端
+     */
+    syncAvatar() {
+        const avatar = avatarManager.get();
+        if (avatar) {
+            network.emit(LOBBY_EVENTS.SET_AVATAR, avatar);
+        }
+    }
+
+    /**
+     * 更新头像并同步
+     * @param {Object} avatar - { type: 'emoji'|'image', data: string }
+     */
+    updateAvatar(avatar) {
+        avatarManager.save(avatar);
+        this.syncAvatar();
     }
 
     /**

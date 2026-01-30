@@ -20,6 +20,11 @@ export class LobbyHandler {
             this.playerManager.setPlayerName(socket.id, name);
         });
 
+        // 设置头像
+        socket.on(LOBBY_EVENTS.SET_AVATAR, (avatar) => {
+            this.handleSetAvatar(socket, avatar);
+        });
+
         // 获取房间列表
         socket.on(LOBBY_EVENTS.GET_ROOM_LIST, () => {
             socket.emit(LOBBY_EVENTS.ROOM_LIST, this.roomManager.getRoomList());
@@ -59,6 +64,23 @@ export class LobbyHandler {
         socket.on(ROOM_EVENTS.DANMAKU_SEND, (data) => {
             this.handleDanmakuSend(socket, data);
         });
+    }
+
+    /**
+     * 处理设置头像
+     * @param {Socket} socket
+     * @param {Object} avatar - { type: 'emoji'|'image', data: string }
+     */
+    handleSetAvatar(socket, avatar) {
+        console.log(`[LobbyHandler] 收到头像设置请求: ${socket.id}, 类型: ${avatar?.type}`);
+        this.playerManager.setPlayerAvatar(socket.id, avatar);
+
+        // 如果在房间内，广播房间状态更新
+        const player = this.playerManager.getPlayer(socket.id);
+        if (player?.roomId) {
+            console.log(`[LobbyHandler] 广播房间 ${player.roomId} 状态更新`);
+            this.broadcastRoomState(player.roomId);
+        }
     }
 
     /**
