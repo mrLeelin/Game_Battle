@@ -209,7 +209,7 @@ export class GunBeanInput {
         if (e.button === 0) { // 左键
             this.isShooting = true;
             // 开火时隐藏鼠标
-            if (this.game.ui && !this.game.isDead) {
+            if (this.game.ui && this.game.isRunning && !this.game.isDead && !this.game.isPaused) {
                 this.game.ui.hideCursor();
                 this.game.ui.showCrosshair();
             }
@@ -243,7 +243,7 @@ export class GunBeanInput {
             e.preventDefault();
             this.isShooting = true;
             // 开火时隐藏鼠标
-            if (this.game.ui && !this.game.isDead) {
+            if (this.game.ui && this.game.isRunning && !this.game.isDead && !this.game.isPaused) {
                 this.game.ui.hideCursor();
                 this.game.ui.showCrosshair();
             }

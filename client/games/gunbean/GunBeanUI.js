@@ -178,7 +178,6 @@ export class GunBeanUI {
                 color: #fff;
                 user-select: none;
                 text-transform: uppercase;
-                cursor: none;
             }
 
             /* 隐藏整个页面的鼠标光标 */
@@ -409,6 +408,7 @@ export class GunBeanUI {
                 align-items: center;
                 z-index: 10000;
                 pointer-events: auto;
+                cursor: default !important; /* 确保显示默认光标 */
                 animation: gb-fade-in 0.5s ease;
             }
             @keyframes gb-fade-in {
@@ -837,19 +837,7 @@ export class GunBeanUI {
         resultEl.style.display = 'flex';
     }
 
-    /**
-     * 显示鼠标光标
-     */
-    showCursor() {
-        document.body.style.cursor = 'default';
-    }
 
-    /**
-     * 隐藏鼠标光标 (使用瞄准准星)
-     */
-    hideCursor() {
-        document.body.style.cursor = 'none';
-    }
 
     /**
      * 隐藏准星
@@ -872,6 +860,7 @@ export class GunBeanUI {
      */
     showCursor() {
         document.body.classList.remove('gb-hide-cursor');
+        document.body.style.cursor = 'default';
     }
 
     /**
@@ -879,6 +868,7 @@ export class GunBeanUI {
      */
     hideCursor() {
         document.body.classList.add('gb-hide-cursor');
+        document.body.style.cursor = 'none';
     }
 
     /**

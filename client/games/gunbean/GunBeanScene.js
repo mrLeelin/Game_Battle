@@ -5,6 +5,11 @@
 import monster1Url from '../../../texture/qiangdouren/monster_1.png';
 import monster2Url from '../../../texture/qiangdouren/monster_2.png';
 import monster3Url from '../../../texture/qiangdouren/monster_3.png';
+import monster4Url from '../../../texture/qiangdouren/monster_4.png';
+import monster5Url from '../../../texture/qiangdouren/monster_5.png';
+import monster6Url from '../../../texture/qiangdouren/monster_6.png';
+import monster7Url from '../../../texture/qiangdouren/monster_7.png';
+import monster8Url from '../../../texture/qiangdouren/monster_8.png';
 import water1Url from '../../../texture/qiangdouren/water_1.png';
 import water2Url from '../../../texture/qiangdouren/water_2.png';
 import { gunBeanAudio } from './GunBeanAudio.js';
@@ -21,7 +26,12 @@ const TEXTURE_CONFIG = {
     monsters: {
         1: monster1Url,
         2: monster2Url,
-        3: monster3Url
+        3: monster3Url,
+        4: monster4Url,
+        5: monster5Url,
+        6: monster6Url,
+        7: monster7Url,
+        8: monster8Url
     },
     water: {
         wave: water1Url,    // 上层（波纹）

@@ -5,7 +5,7 @@
 import { GAME_EVENTS, GUNBEAN_EVENTS } from '../../../shared/Events.js';
 import { DEFAULT_WEAPON, ALL_SKILLS, LEGENDARY_SKILLS, generateSkillChoices, getSkillById, getExpForLevel, EXP_ORB_CONFIG, checkFusionOptions } from './GunBeanSkillData.js';
 
-// 敌人类型配置（3种小怪）
+// 敌人类型配置（8种小怪）
 const ENEMY_TYPES = {
     // 类型1：普通小怪
     1: {
@@ -30,6 +30,46 @@ const ENEMY_TYPES = {
         speedMultiplier: 0.6,
         expMultiplier: 1.5,
         size: 60                // (40 * 1.5)
+    },
+    // 类型4：平衡小怪
+    4: {
+        type: 4,
+        hpMultiplier: 1.2,
+        speedMultiplier: 1.2,
+        expMultiplier: 1.2,
+        size: 50
+    },
+    // 类型5：超速小怪（血少、极快、经验少）
+    5: {
+        type: 5,
+        hpMultiplier: 0.8,
+        speedMultiplier: 1.8,
+        expMultiplier: 0.9,
+        size: 35
+    },
+    // 类型6：坦克小怪（血多、慢速、经验多）
+    6: {
+        type: 6,
+        hpMultiplier: 1.5,
+        speedMultiplier: 0.8,
+        expMultiplier: 1.3,
+        size: 55
+    },
+    // 类型7：巨型小怪（血极多、极慢、经验极多）
+    7: {
+        type: 7,
+        hpMultiplier: 2.5,
+        speedMultiplier: 0.5,
+        expMultiplier: 2.0,
+        size: 65
+    },
+    // 类型8：微型小怪（血极少、极快、经验极少）
+    8: {
+        type: 8,
+        hpMultiplier: 0.6,
+        speedMultiplier: 2.0,
+        expMultiplier: 0.7,
+        size: 30
     }
 };
 
@@ -2156,8 +2196,8 @@ export class GunBeanHandler {
             case 3: x = halfW; y = (Math.random() - 0.5) * CONFIG.ARENA_HEIGHT * 0.8; break;
         }
 
-        // 随机选择敌人类型（1-3）
-        const enemyType = Math.floor(Math.random() * 3) + 1;
+        // 随机选择敌人类型（1-8）
+        const enemyType = Math.floor(Math.random() * 8) + 1;
         const typeConfig = ENEMY_TYPES[enemyType];
 
         // 根据难度和类型计算敌人属性（难度翻倍：每级增加1 HP而不是0.5）
