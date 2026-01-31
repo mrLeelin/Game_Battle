@@ -23,9 +23,15 @@ export class BallGameScene {
         this.playerMeshes = new Map();
         this.ballMeshes = new Map();
         this.goalMeshes = [];
+        this.itemMeshes = new Map();    // 道具网格
 
         // 飞行中的球
         this.flyingBalls = [];
+
+        // 地面平面（用于鼠标射线检测）
+        this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        this.raycaster = new THREE.Raycaster();
+        this.mouseWorldPos = new THREE.Vector3();
     }
 
     /**
@@ -425,6 +431,12 @@ export class BallGameScene {
         rightHand.position.y = -0.32;
         rightElbow.add(rightHand);
 
+        // 右手道具挂载点（用于显示手持棒球棒等）
+        const rightHandHolder = new THREE.Group();
+        rightHandHolder.position.set(0, -0.1, 0);
+        rightHand.add(rightHandHolder);
+        group.userData.rightHandHolder = rightHandHolder;
+
 
         // 5. 腿部 (带关节)
         // 左腿容器 (髋关节)
@@ -552,23 +564,34 @@ export class BallGameScene {
                 player.position.x += dx * moveSpeed;
                 player.position.z += dz * moveSpeed;
 
-                // 面向移动方向 (平滑旋转)
-                if (dist > 0.1) {
-                    const targetRotation = Math.atan2(dx, dz);
-                    let rotDiff = targetRotation - player.rotation.y;
-                    
-                    // 处理角度跳变 (-PI 到 PI)
-                    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-                    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-                    
-                    player.rotation.y += rotDiff * 0.2;
-                }
+                // 计算移动方向与当前朝向的夹角
+                const moveAngle = Math.atan2(dx, dz);
+                let angleDiff = Math.abs(moveAngle - player.rotation.y);
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                angleDiff = Math.abs(angleDiff);
+
+                // 判断是否后退 (夹角大于135度)
+                const isMovingBackward = angleDiff > (Math.PI * 0.75);
+
+                // 注意：不再强制旋转面向移动方向，而是由输入控制朝向
 
                 // === 跑步动画 ===
-                anim.walkPhase += deltaTime * 15; // 跑步频率
+                // 如果后退，播放倒放动画（相位减小），否则正常播放
+                const phaseSpeed = 15;
+                if (isMovingBackward) {
+                    anim.walkPhase -= deltaTime * phaseSpeed;
+                } else {
+                    anim.walkPhase += deltaTime * phaseSpeed;
+                }
 
                 // 身体倾斜
-                if (bodyGroup) bodyGroup.rotation.x = 0.2; // 向前倾
+                if (bodyGroup) {
+                     if (isMovingBackward) {
+                        bodyGroup.rotation.x = -0.1; // 后退时微向后倾或直立
+                     } else {
+                        bodyGroup.rotation.x = 0.2; // 前进时向前倾
+                     }
+                }
 
                 // 腿部摆动
                 const legAmp = 1.0; // 腿摆动幅度
@@ -581,6 +604,8 @@ export class BallGameScene {
                 if (rightHip) rightHip.rotation.x = rightCycle * legAmp;
 
                 // 膝盖弯曲 (只在腿向后摆时弯曲)
+                // 后退时逻辑可能需要微调，或者直接复用正向逻辑（看起来像倒着跑）
+                // 简单的倒放相位通常足够模拟倒走
                 if (leftKnee) leftKnee.rotation.x = Math.max(0, leftCycle) * kneeAmp;
                 if (rightKnee) rightKnee.rotation.x = Math.max(0, rightCycle) * kneeAmp;
 
@@ -643,19 +668,31 @@ export class BallGameScene {
                 // 双手举过头顶
                 const armLiftAngle = -2.8; // 向上举起
                 const armSpread = 0.1; // 稍微向内收，托住球
-                
+
                 if (leftShoulder) {
                     leftShoulder.rotation.x = armLiftAngle;
-                    leftShoulder.rotation.z = -armSpread; 
+                    leftShoulder.rotation.z = -armSpread;
                 }
                 if (rightShoulder) {
                     rightShoulder.rotation.x = armLiftAngle;
                     rightShoulder.rotation.z = armSpread;
                 }
-                
+
                 // 手肘微曲
                 if (leftElbow) leftElbow.rotation.x = -0.3;
                 if (rightElbow) rightElbow.rotation.x = -0.3;
+            }
+
+            // === 持棒球棒动作 (覆盖右臂动画) ===
+            if (player.userData.isHoldingBat && !isHolding) {
+                // 持棒准备姿势
+                if (rightShoulder) {
+                    rightShoulder.rotation.x = -0.5;  // 手臂稍微抬起
+                    rightShoulder.rotation.z = -0.3;  // 向外张开
+                }
+                if (rightElbow) {
+                    rightElbow.rotation.x = -0.8;     // 手肘弯曲
+                }
             }
 
             // === 跳跃动画 ===
@@ -902,6 +939,341 @@ export class BallGameScene {
         this.ballMeshes.set(ballData.id, ball);
 
         return ball;
+    }
+
+    /**
+     * 创建道具（棒球棒）
+     */
+    createItem(itemData) {
+        const group = new THREE.Group();
+
+        // 棒球棒模型
+        // 棒身
+        const handleGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.8, 8);
+        const handleMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // 棕色木质
+        const handle = new THREE.Mesh(handleGeo, handleMat);
+        handle.position.y = 0.4;
+        group.add(handle);
+
+        // 棒头（粗端）
+        const headGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.3, 8);
+        const headMat = new THREE.MeshLambertMaterial({ color: 0xA0522D });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 0.95;
+        group.add(head);
+
+        // 发光环效果
+        const ringGeo = new THREE.RingGeometry(0.4, 0.5, 32);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xffff00,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.5
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.01;
+        group.add(ring);
+        group.userData.ring = ring;
+
+        group.position.set(itemData.x || 0, 0, itemData.z || 0);
+        group.userData.itemId = itemData.id;
+        group.userData.itemType = itemData.type;
+
+        this.scene.add(group);
+        this.itemMeshes.set(itemData.id, group);
+
+        return group;
+    }
+
+    /**
+     * 移除道具
+     */
+    removeItem(itemId) {
+        const item = this.itemMeshes.get(itemId);
+        if (item) {
+            this.scene.remove(item);
+            this.itemMeshes.delete(itemId);
+        }
+    }
+
+    /**
+     * 更新道具位置（用于重生）
+     */
+    updateItemPosition(itemId, x, z) {
+        const item = this.itemMeshes.get(itemId);
+        if (item) {
+            item.position.set(x, 0, z);
+            item.visible = true;
+        }
+    }
+
+    /**
+     * 获取鼠标在3D世界中的位置
+     */
+    getMouseWorldPosition(clientX, clientY) {
+        if (!this.camera) return { x: 0, z: 0 };
+
+        // 转换为标准化设备坐标
+        const mouse = new THREE.Vector2(
+            (clientX / window.innerWidth) * 2 - 1,
+            -(clientY / window.innerHeight) * 2 + 1
+        );
+
+        // 射线与地面平面相交
+        this.raycaster.setFromCamera(mouse, this.camera);
+        this.raycaster.ray.intersectPlane(this.groundPlane, this.mouseWorldPos);
+
+        return { x: this.mouseWorldPos.x, z: this.mouseWorldPos.z };
+    }
+
+    /**
+     * 设置玩家朝向
+     */
+    setPlayerRotation(playerId, rotation) {
+        const player = this.playerMeshes.get(playerId);
+        if (player) {
+            player.rotation.y = rotation;
+        }
+    }
+
+    /**
+     * 让玩家面向鼠标位置
+     */
+    facePlayerToMouse(playerId, mouseX, mouseZ) {
+        const player = this.playerMeshes.get(playerId);
+        if (!player) return 0;
+
+        const dx = mouseX - player.position.x;
+        const dz = mouseZ - player.position.z;
+        const rotation = Math.atan2(dx, dz);
+
+        player.rotation.y = rotation;
+        return rotation;
+    }
+
+    /**
+     * 显示眩晕特效
+     */
+    showStunEffect(playerId) {
+        const player = this.playerMeshes.get(playerId);
+        if (!player) return;
+
+        // 如果已有眩晕特效，先移除
+        if (player.userData.stunEffect) {
+            player.userData.headGroup?.remove(player.userData.stunEffect);
+        }
+
+        // 创建眩晕特效（旋转星星）
+        const stunGroup = new THREE.Group();
+        stunGroup.position.set(0, 0.8, 0);
+
+        // 创建3个星星
+        for (let i = 0; i < 3; i++) {
+            const starGeo = new THREE.OctahedronGeometry(0.1);
+            const starMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const star = new THREE.Mesh(starGeo, starMat);
+
+            const angle = (i / 3) * Math.PI * 2;
+            star.position.set(Math.cos(angle) * 0.3, 0, Math.sin(angle) * 0.3);
+            stunGroup.add(star);
+        }
+
+        stunGroup.userData.isStunEffect = true;
+        player.userData.stunEffect = stunGroup;
+        player.userData.headGroup?.add(stunGroup);
+
+        // 让角色变暗
+        player.userData.isStunned = true;
+    }
+
+    /**
+     * 隐藏眩晕特效
+     */
+    hideStunEffect(playerId) {
+        const player = this.playerMeshes.get(playerId);
+        if (!player) return;
+
+        if (player.userData.stunEffect) {
+            player.userData.headGroup?.remove(player.userData.stunEffect);
+            player.userData.stunEffect = null;
+        }
+
+        player.userData.isStunned = false;
+    }
+
+    /**
+     * 显示玩家手持棒球棒
+     */
+    showPlayerHoldingBat(playerId) {
+        const player = this.playerMeshes.get(playerId);
+        if (!player) return;
+
+        // 如果已经有棒球棒，不重复添加
+        if (player.userData.heldBat) return;
+
+        const { rightHandHolder, rightShoulder, rightElbow } = player.userData;
+        if (!rightHandHolder) return;
+
+        // 创建手持棒球棒
+        const batGroup = new THREE.Group();
+
+        // 棒身
+        const handleGeo = new THREE.CylinderGeometry(0.04, 0.06, 0.7, 8);
+        const handleMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const handle = new THREE.Mesh(handleGeo, handleMat);
+        handle.position.y = 0.35;
+        batGroup.add(handle);
+
+        // 棒头
+        const headGeo = new THREE.CylinderGeometry(0.06, 0.1, 0.25, 8);
+        const headMat = new THREE.MeshLambertMaterial({ color: 0xA0522D });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 0.85;
+        batGroup.add(head);
+
+        // 调整棒球棒角度，看起来像握在手里
+        batGroup.rotation.x = -Math.PI / 6;  // 稍微向前倾斜
+        batGroup.rotation.z = Math.PI / 8;   // 稍微向外
+
+        rightHandHolder.add(batGroup);
+        player.userData.heldBat = batGroup;
+
+        // 调整持棒姿势
+        if (rightShoulder) {
+            rightShoulder.rotation.x = -0.5;  // 手臂稍微抬起
+            rightShoulder.rotation.z = -0.3;  // 向外张开
+        }
+        if (rightElbow) {
+            rightElbow.rotation.x = -0.8;     // 手肘弯曲
+        }
+
+        player.userData.isHoldingBat = true;
+    }
+
+    /**
+     * 隐藏玩家手持棒球棒
+     */
+    hidePlayerHoldingBat(playerId) {
+        const player = this.playerMeshes.get(playerId);
+        if (!player) return;
+
+        const { rightHandHolder, rightShoulder, rightElbow, heldBat } = player.userData;
+
+        if (heldBat && rightHandHolder) {
+            rightHandHolder.remove(heldBat);
+            player.userData.heldBat = null;
+        }
+
+        // 恢复默认姿势
+        if (rightShoulder) {
+            rightShoulder.rotation.x = 0;
+            rightShoulder.rotation.z = -0.1;
+        }
+        if (rightElbow) {
+            rightElbow.rotation.x = -0.1;
+        }
+
+        player.userData.isHoldingBat = false;
+    }
+
+    /**
+     * 播放挥棒攻击动画
+     */
+    playAttackAnimation(playerId) {
+        const player = this.playerMeshes.get(playerId);
+        if (!player) return;
+
+        // 创建临时棒球棒
+        const batGroup = new THREE.Group();
+
+        // 棒身
+        const handleGeo = new THREE.CylinderGeometry(0.03, 0.05, 0.6, 8);
+        const handleMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const handle = new THREE.Mesh(handleGeo, handleMat);
+        handle.position.y = 0.3;
+        batGroup.add(handle);
+
+        // 棒头
+        const headGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.2, 8);
+        const headMat = new THREE.MeshLambertMaterial({ color: 0xA0522D });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 0.7;
+        batGroup.add(head);
+
+        // 将棒球棒放在右手位置
+        batGroup.rotation.z = Math.PI / 2;
+        batGroup.position.set(0.5, 1.0, 0.3);
+
+        player.add(batGroup);
+
+        // 挥棒动画
+        const startRotation = -Math.PI / 3;
+        const endRotation = Math.PI / 2;
+        const duration = 200; // 毫秒
+        const startTime = performance.now();
+
+        const animate = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // 使用缓动函数
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            batGroup.rotation.y = startRotation + (endRotation - startRotation) * easeOut;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // 动画结束，移除棒球棒
+                setTimeout(() => {
+                    player.remove(batGroup);
+                }, 100);
+            }
+        };
+
+        animate();
+    }
+
+    /**
+     * 更新眩晕特效动画（在每帧调用）
+     */
+    updateStunEffects(deltaTime) {
+        this.playerMeshes.forEach((player) => {
+            if (player.userData.stunEffect) {
+                // 旋转星星
+                player.userData.stunEffect.rotation.y += deltaTime * 5;
+            }
+
+            // 眩晕闪烁效果
+            if (player.userData.isStunned && player.userData.bodyGroup) {
+                const flash = Math.sin(performance.now() * 0.01) * 0.3 + 0.7;
+                player.userData.bodyGroup.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.opacity = flash;
+                        child.material.transparent = true;
+                    }
+                });
+            } else if (player.userData.bodyGroup) {
+                // 恢复正常
+                player.userData.bodyGroup.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.opacity = 1;
+                        child.material.transparent = false;
+                    }
+                });
+            }
+        });
+
+        // 更新道具发光环动画
+        this.itemMeshes.forEach((item) => {
+            if (item.userData.ring) {
+                item.userData.ring.rotation.z += deltaTime * 2;
+                const pulse = Math.sin(performance.now() * 0.003) * 0.2 + 0.5;
+                item.userData.ring.material.opacity = pulse;
+            }
+            // 道具上下浮动
+            item.position.y = Math.sin(performance.now() * 0.002) * 0.1 + 0.1;
+        });
     }
 
     /**

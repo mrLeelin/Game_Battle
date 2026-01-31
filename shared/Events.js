@@ -86,6 +86,8 @@ export const BALLGAME_EVENTS = {
     DROP_BALL: 'ball:drop',                 // 放下球
     THROW_BALL: 'ball:throw',               // 投掷球
     SCORE_BALL: 'ball:score',               // 进球得分
+    PLAYER_ATTACK: 'ball:playerAttack',     // 玩家攻击（方向）
+    PLAYER_ROTATE: 'ball:playerRotate',     // 玩家朝向（鼠标方向）
 
     // 服务端 -> 客户端
     BALL_SPAWNED: 'ball:spawned',           // 球生成
@@ -96,5 +98,48 @@ export const BALLGAME_EVENTS = {
     BALL_STOLEN: 'ball:stolen',             // 球被偷走
     TEAM_SCORES: 'ball:teamScores',         // 队伍分数更新
     GAME_COUNTDOWN: 'ball:countdown',       // 倒计时更新
-    GAME_RESULT: 'ball:result'              // 游戏结果
+    GAME_RESULT: 'ball:result',             // 游戏结果
+
+    // 道具相关
+    ITEM_SPAWNED: 'ball:itemSpawned',       // 道具生成
+    ITEM_PICKED: 'ball:itemPicked',         // 道具被捡起
+    ITEM_USED: 'ball:itemUsed',             // 道具被使用
+
+    // 攻击与眩晕
+    ATTACK_PERFORMED: 'ball:attackPerformed', // 攻击动作广播
+    PLAYER_HIT: 'ball:playerHit',           // 玩家被击中
+    PLAYER_STUNNED: 'ball:playerStunned',   // 玩家被眩晕
+    PLAYER_UNSTUN: 'ball:playerUnstun'      // 玩家眩晕结束
+};
+
+// ==================== 枪豆人专用事件 ====================
+// 仅 GunBean 使用（肉鸽模式）
+export const GUNBEAN_EVENTS = {
+    // 客户端 -> 服务端
+    SHOOT: 'gunbean:shoot',                 // 射击（方向）
+    REVIVE: 'gunbean:revive',               // 复活队友
+    PLAYER_ROTATE: 'gunbean:playerRotate',  // 玩家转向（瞄准方向）
+    SKILL_SELECT: 'gunbean:skillSelect',    // 选择技能（升级时三选一）
+
+    // 服务端 -> 客户端
+    PLAYER_UPDATE: 'gunbean:playerUpdate',  // 玩家状态更新（位置、速度）
+    BULLET_FIRED: 'gunbean:bulletFired',    // 子弹发射
+    BULLET_HIT: 'gunbean:bulletHit',        // 子弹命中
+    PLAYER_DIED: 'gunbean:playerDied',      // 玩家死亡
+    PLAYER_REVIVED: 'gunbean:playerRevived',// 玩家复活
+    ENEMY_SPAWNED: 'gunbean:enemySpawned',  // 敌人生成
+    ENEMY_DIED: 'gunbean:enemyDied',        // 敌人死亡
+    ENEMY_UPDATE: 'gunbean:enemyUpdate',    // 敌人状态更新
+    GAME_RESULT: 'gunbean:result',          // 游戏结果
+    BOAT_DESTROYED: 'gunbean:boatDestroyed',// 船只被摧毁
+
+    // 经验系统事件
+    EXP_ORB_SPAWNED: 'gunbean:expOrbSpawned',   // 经验球生成
+    EXP_ORB_COLLECTED: 'gunbean:expOrbCollected', // 经验球被收集
+    EXP_UPDATE: 'gunbean:expUpdate',           // 经验值更新
+    LEVEL_UP: 'gunbean:levelUp',               // 升级
+    SKILL_CHOICES: 'gunbean:skillChoices',     // 发送三选一技能选项
+    SKILL_SELECTED: 'gunbean:skillSelected',   // 技能选择结果
+    GAME_PAUSE: 'gunbean:gamePause',           // 游戏暂停（有人升级选技能）
+    GAME_RESUME: 'gunbean:gameResume'          // 游戏恢复
 };

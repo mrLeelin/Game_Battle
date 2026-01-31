@@ -18,7 +18,18 @@ const GAME_CONFIG = {
     BALL_COUNT: 5,          // 初始球数量
     PICKUP_DISTANCE: 1.5,   // 捡球距离
     GOAL_DISTANCE: 2.5,     // 进球距离
-    RESPAWN_DELAY: 2000     // 球重生延迟（毫秒）
+    RESPAWN_DELAY: 2000,    // 球重生延迟（毫秒）
+    ITEM_COUNT: 3,          // 初始道具数量
+    ITEM_PICKUP_DISTANCE: 1.5, // 捡道具距离
+    ITEM_RESPAWN_DELAY: 5000,  // 道具重生延迟（毫秒）
+    STUN_DURATION: 2000,    // 眩晕时长（毫秒）
+    ATTACK_RANGE: 2.0,      // 攻击范围
+    ATTACK_ANGLE: 90        // 攻击角度（度）
+};
+
+// 道具类型
+const ITEM_TYPES = {
+    BASEBALL_BAT: 1         // 棒球棒
 };
 
 // 球门位置
@@ -70,6 +81,16 @@ export class BallGameHandler {
         socket.on(GAME_EVENTS.PLAYER_MOVE, (data) => {
             this.handlePlayerMove(socket, data);
         });
+
+        // 玩家攻击
+        socket.on(BALLGAME_EVENTS.PLAYER_ATTACK, (data) => {
+            this.handlePlayerAttack(socket, data);
+        });
+
+        // 玩家朝向更新
+        socket.on(BALLGAME_EVENTS.PLAYER_ROTATE, (data) => {
+            this.handlePlayerRotate(socket, data);
+        });
     }
 
     /**
@@ -83,6 +104,7 @@ export class BallGameHandler {
             roomId,
             players: new Map(),
             balls: new Map(),
+            items: new Map(),           // 场上道具
             scores: [0, 0, 0, 0],
             countdown: GAME_CONFIG.DURATION,
             isRunning: false,
@@ -108,7 +130,11 @@ export class BallGameHandler {
                 teamId,
                 x: spawn.x,
                 z: spawn.z,
-                holdingBall: null
+                rotation: 0,            // 玩家朝向（弧度）
+                holdingBall: null,
+                holdingItem: null,      // 当前持有的道具 { type, uses }
+                isStunned: false,       // 是否眩晕
+                stunEndTime: 0          // 眩晕结束时间
             });
         });
 
@@ -120,6 +146,18 @@ export class BallGameHandler {
                 x: (Math.random() - 0.5) * 10,
                 z: (Math.random() - 0.5) * 10,
                 heldBy: null
+            });
+        }
+
+        // 生成道具（棒球棒）
+        for (let i = 0; i < GAME_CONFIG.ITEM_COUNT; i++) {
+            const itemId = `item_${i}`;
+            gameState.items.set(itemId, {
+                id: itemId,
+                type: ITEM_TYPES.BASEBALL_BAT,
+                x: (Math.random() - 0.5) * 20,
+                z: (Math.random() - 0.5) * 20,
+                isActive: true          // 是否可捡取
             });
         }
 
@@ -137,6 +175,7 @@ export class BallGameHandler {
                         teamId: playerState.teamId,
                         players: Array.from(gameState.players.values()),
                         balls: Array.from(gameState.balls.values()),
+                        items: Array.from(gameState.items.values()),
                         scores: gameState.scores
                     });
                 }
@@ -220,9 +259,28 @@ export class BallGameHandler {
         const game = this.games.get(roomId);
         if (!game) return;
 
+        const now = Date.now();
+
+        // 检查眩晕状态和自动捡道具
+        game.players.forEach((gamePlayer, playerId) => {
+            // 检查眩晕是否结束
+            if (gamePlayer.isStunned && now >= gamePlayer.stunEndTime) {
+                gamePlayer.isStunned = false;
+                this.io.to(roomId).emit(BALLGAME_EVENTS.PLAYER_UNSTUN, {
+                    playerId: playerId
+                });
+            }
+
+            // 自动捡道具（如果不在眩晕状态）
+            if (!gamePlayer.isStunned) {
+                this.tryAutoPickupItem(game, gamePlayer);
+            }
+        });
+
         this.io.to(roomId).emit(GAME_EVENTS.STATE_SYNC, {
             players: Array.from(game.players.values()),
-            balls: Array.from(game.balls.values())
+            balls: Array.from(game.balls.values()),
+            items: Array.from(game.items.values()).filter(item => item.isActive)
         });
     }
 
@@ -238,6 +296,9 @@ export class BallGameHandler {
 
         const gamePlayer = game.players.get(socket.id);
         if (!gamePlayer) return;
+
+        // 眩晕状态不能移动
+        if (gamePlayer.isStunned) return;
 
         // 更新位置
         gamePlayer.x = Math.max(-FIELD.WIDTH / 2, Math.min(FIELD.WIDTH / 2, data.x));
@@ -517,5 +578,202 @@ export class BallGameHandler {
         }
 
         game.players.delete(playerId);
+    }
+
+    /**
+     * 处理玩家朝向更新
+     */
+    handlePlayerRotate(socket, data) {
+        const player = this.playerManager.getPlayer(socket.id);
+        if (!player?.roomId) return;
+
+        const game = this.games.get(player.roomId);
+        if (!game) return;
+
+        const gamePlayer = game.players.get(socket.id);
+        if (!gamePlayer) return;
+
+        gamePlayer.rotation = data.rotation;
+    }
+
+    /**
+     * 自动捡道具（单道具模式：捡新的会丢弃旧的）
+     */
+    tryAutoPickupItem(game, gamePlayer) {
+        const now = Date.now();
+
+        game.items.forEach(item => {
+            if (!item.isActive) return;
+
+            // 检查道具是否在冷却期（刚丢弃的道具1秒内不能被捡起）
+            if (item.dropTime && now - item.dropTime < 1000) return;
+
+            const dist = this.getDistance(gamePlayer.x, gamePlayer.z, item.x, item.z);
+            if (dist < GAME_CONFIG.ITEM_PICKUP_DISTANCE) {
+                // 如果已经持有道具，先丢弃旧道具
+                if (gamePlayer.holdingItem) {
+                    // 旧道具掉落在稍微偏移的位置，避免立即被捡起
+                    const offsetAngle = Math.random() * Math.PI * 2;
+                    const offsetDist = 2.0;  // 掉落在2单位远的地方
+                    const dropX = gamePlayer.x + Math.cos(offsetAngle) * offsetDist;
+                    const dropZ = gamePlayer.z + Math.sin(offsetAngle) * offsetDist;
+
+                    const droppedItemId = `dropped_${Date.now()}`;
+                    game.items.set(droppedItemId, {
+                        id: droppedItemId,
+                        type: gamePlayer.holdingItem.type,
+                        x: Math.max(-FIELD.WIDTH / 2, Math.min(FIELD.WIDTH / 2, dropX)),
+                        z: Math.max(-FIELD.HEIGHT / 2, Math.min(FIELD.HEIGHT / 2, dropZ)),
+                        isActive: true,
+                        dropTime: now  // 记录掉落时间，用于冷却判断
+                    });
+
+                    // 广播道具掉落
+                    this.io.to(game.roomId).emit(BALLGAME_EVENTS.ITEM_SPAWNED, {
+                        itemId: droppedItemId,
+                        type: gamePlayer.holdingItem.type,
+                        x: dropX,
+                        z: dropZ
+                    });
+                }
+
+                // 捡起新道具
+                item.isActive = false;
+                gamePlayer.holdingItem = {
+                    type: item.type,
+                    uses: 1  // 棒球棒用1次
+                };
+
+                // 广播道具被捡起
+                this.io.to(game.roomId).emit(BALLGAME_EVENTS.ITEM_PICKED, {
+                    itemId: item.id,
+                    playerId: gamePlayer.id,
+                    itemType: item.type,
+                    holdingItem: gamePlayer.holdingItem
+                });
+
+                // 道具重生
+                setTimeout(() => {
+                    if (game.isRunning) {
+                        item.x = (Math.random() - 0.5) * 20;
+                        item.z = (Math.random() - 0.5) * 20;
+                        item.isActive = true;
+                        item.dropTime = null;  // 清除掉落时间
+
+                        this.io.to(game.roomId).emit(BALLGAME_EVENTS.ITEM_SPAWNED, {
+                            itemId: item.id,
+                            type: item.type,
+                            x: item.x,
+                            z: item.z
+                        });
+                    }
+                }, GAME_CONFIG.ITEM_RESPAWN_DELAY);
+            }
+        });
+    }
+
+    /**
+     * 处理玩家攻击
+     */
+    handlePlayerAttack(socket, data) {
+        const player = this.playerManager.getPlayer(socket.id);
+        if (!player?.roomId) return;
+
+        const game = this.games.get(player.roomId);
+        if (!game || !game.isRunning) return;
+
+        const gamePlayer = game.players.get(socket.id);
+        if (!gamePlayer) return;
+
+        // 眩晕状态不能攻击
+        if (gamePlayer.isStunned) return;
+
+        // 检查是否有道具可用
+        if (!gamePlayer.holdingItem || gamePlayer.holdingItem.type !== ITEM_TYPES.BASEBALL_BAT) return;
+
+        // 消耗道具
+        gamePlayer.holdingItem.uses--;
+        if (gamePlayer.holdingItem.uses <= 0) {
+            gamePlayer.holdingItem = null;
+        }
+
+        // 广播攻击动作
+        this.io.to(player.roomId).emit(BALLGAME_EVENTS.ATTACK_PERFORMED, {
+            playerId: socket.id,
+            rotation: gamePlayer.rotation,
+            itemType: ITEM_TYPES.BASEBALL_BAT
+        });
+
+        // 通知道具使用
+        this.io.to(player.roomId).emit(BALLGAME_EVENTS.ITEM_USED, {
+            playerId: socket.id,
+            holdingItem: gamePlayer.holdingItem
+        });
+
+        // 检测是否击中敌人
+        const attackDir = gamePlayer.rotation;
+        const attackRange = GAME_CONFIG.ATTACK_RANGE;
+        const attackAngleRad = (GAME_CONFIG.ATTACK_ANGLE / 2) * (Math.PI / 180);
+
+        game.players.forEach((target, targetId) => {
+            if (targetId === socket.id) return; // 不打自己
+            if (target.teamId === gamePlayer.teamId) return; // 不打队友
+            if (target.isStunned) return; // 已眩晕的不重复打
+
+            const dx = target.x - gamePlayer.x;
+            const dz = target.z - gamePlayer.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+
+            if (dist > attackRange) return;
+
+            // 检查角度
+            const angleToTarget = Math.atan2(dx, dz);
+            let angleDiff = Math.abs(angleToTarget - attackDir);
+            if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+            if (angleDiff <= attackAngleRad) {
+                // 击中！
+                this.applyStun(game, target, socket.id);
+            }
+        });
+    }
+
+    /**
+     * 应用眩晕效果
+     */
+    applyStun(game, targetPlayer, attackerId) {
+        targetPlayer.isStunned = true;
+        targetPlayer.stunEndTime = Date.now() + GAME_CONFIG.STUN_DURATION;
+
+        // 如果持有球，掉落
+        if (targetPlayer.holdingBall) {
+            const ball = game.balls.get(targetPlayer.holdingBall);
+            if (ball) {
+                ball.heldBy = null;
+                ball.x = targetPlayer.x;
+                ball.z = targetPlayer.z;
+
+                this.io.to(game.roomId).emit(BALLGAME_EVENTS.BALL_DROPPED, {
+                    ballId: ball.id,
+                    playerId: targetPlayer.id,
+                    x: ball.x,
+                    z: ball.z
+                });
+            }
+            targetPlayer.holdingBall = null;
+        }
+
+        // 广播眩晕
+        this.io.to(game.roomId).emit(BALLGAME_EVENTS.PLAYER_STUNNED, {
+            playerId: targetPlayer.id,
+            attackerId: attackerId,
+            duration: GAME_CONFIG.STUN_DURATION
+        });
+
+        // 广播击中
+        this.io.to(game.roomId).emit(BALLGAME_EVENTS.PLAYER_HIT, {
+            playerId: targetPlayer.id,
+            attackerId: attackerId
+        });
     }
 }

@@ -1,6 +1,7 @@
 /**
  * 抢球大战 - 客户端游戏主类
  * 4队混战，抢球得分，60秒倒计时
+ * 新增：道具系统、攻击、眩晕
  */
 import * as THREE from 'three';
 import { network } from '../../core/Network.js';
@@ -18,6 +19,11 @@ export const TEAMS = {
     YELLOW: { id: 3, name: '黄队', color: 0xffff44, spawnAngle: Math.PI * 1.5 }
 };
 
+// 道具类型
+const ITEM_TYPES = {
+    BASEBALL_BAT: 1
+};
+
 export class BallGame {
     constructor() {
         this.scene = null;
@@ -27,6 +33,7 @@ export class BallGame {
         // 游戏状态
         this.players = new Map();       // 所有玩家
         this.balls = new Map();         // 场上的球
+        this.items = new Map();         // 场上的道具
         this.teamScores = [0, 0, 0, 0]; // 4队分数
         this.countdown = 60;            // 倒计时
         this.isRunning = false;
@@ -39,6 +46,13 @@ export class BallGame {
         this.localPlayerId = network.id;
         this.localTeamId = 0;
         this.holdingBall = null;        // 正在持有的球ID
+        this.holdingItem = null;        // 当前持有的道具 { type, uses }
+        this.isStunned = false;         // 本地玩家是否眩晕
+        this.playerRotation = 0;        // 本地玩家朝向
+
+        // 朝向发送节流
+        this.lastRotationSent = 0;
+        this.rotationSendInterval = 100; // 100ms发送一次
     }
 
     /**
@@ -136,6 +150,41 @@ export class BallGame {
         network.on(BALLGAME_EVENTS.BALL_THROWN, (data) => {
             this.handleBallThrown(data);
         });
+
+        // 道具被捡起
+        network.on(BALLGAME_EVENTS.ITEM_PICKED, (data) => {
+            this.handleItemPicked(data);
+        });
+
+        // 道具刷新
+        network.on(BALLGAME_EVENTS.ITEM_SPAWNED, (data) => {
+            this.handleItemSpawned(data);
+        });
+
+        // 道具使用
+        network.on(BALLGAME_EVENTS.ITEM_USED, (data) => {
+            this.handleItemUsed(data);
+        });
+
+        // 攻击动作广播
+        network.on(BALLGAME_EVENTS.ATTACK_PERFORMED, (data) => {
+            this.handleAttackPerformed(data);
+        });
+
+        // 玩家被眩晕
+        network.on(BALLGAME_EVENTS.PLAYER_STUNNED, (data) => {
+            this.handlePlayerStunned(data);
+        });
+
+        // 玩家眩晕结束
+        network.on(BALLGAME_EVENTS.PLAYER_UNSTUN, (data) => {
+            this.handlePlayerUnstun(data);
+        });
+
+        // 玩家被击中
+        network.on(BALLGAME_EVENTS.PLAYER_HIT, (data) => {
+            this.handlePlayerHit(data);
+        });
     }
 
     /**
@@ -171,10 +220,22 @@ export class BallGame {
             this.addBall(b);
         });
 
+        // 初始化道具
+        data.items?.forEach(item => {
+            if (item.isActive) {
+                this.addItem(item);
+            }
+        });
+
         // 设置本地玩家初始位置
         const localPlayer = data.players.find(p => p.id === this.localPlayerId);
         if (localPlayer && this.input) {
             this.input.setPosition(localPlayer.x, localPlayer.z);
+            // 初始化道具（手持）
+            if (localPlayer.holdingItem) {
+                this.holdingItem = localPlayer.holdingItem;
+                this.scene?.showPlayerHoldingBat(this.localPlayerId);
+            }
         }
 
         // 更新UI
@@ -205,6 +266,17 @@ export class BallGame {
     }
 
     /**
+     * 添加道具
+     */
+    addItem(itemData) {
+        const mesh = this.scene.createItem(itemData);
+        this.items.set(itemData.id, {
+            ...itemData,
+            mesh
+        });
+    }
+
+    /**
      * 处理状态同步
      */
     handleStateSync(data) {
@@ -217,6 +289,11 @@ export class BallGame {
                 player.x = p.x;
                 player.z = p.z;
                 player.holdingBall = p.holdingBall;
+
+                // 更新朝向
+                if (p.rotation !== undefined) {
+                    this.scene.setPlayerRotation(p.id, p.rotation);
+                }
             }
         });
 
@@ -226,6 +303,25 @@ export class BallGame {
             if (ball && !b.heldBy) {
                 ball.mesh.position.set(b.x, 0.3, b.z);
                 ball.mesh.visible = true;
+            }
+        });
+
+        // 更新道具位置
+        data.items?.forEach(item => {
+            if (item.isActive) {
+                if (!this.items.has(item.id)) {
+                    this.addItem(item);
+                } else {
+                    const existingItem = this.items.get(item.id);
+                    if (existingItem.mesh) {
+                        existingItem.mesh.visible = true;
+                    }
+                }
+            } else {
+                const existingItem = this.items.get(item.id);
+                if (existingItem?.mesh) {
+                    existingItem.mesh.visible = false;
+                }
             }
         });
     }
@@ -325,6 +421,116 @@ export class BallGame {
     }
 
     /**
+     * 处理道具被捡起
+     */
+    handleItemPicked(data) {
+        // 隐藏道具
+        const item = this.items.get(data.itemId);
+        if (item?.mesh) {
+            item.mesh.visible = false;
+        }
+
+        // 如果是本地玩家捡起
+        if (data.playerId === this.localPlayerId) {
+            this.holdingItem = data.holdingItem;
+            // 显示手持棒球棒
+            if (this.holdingItem && this.holdingItem.type === ITEM_TYPES.BASEBALL_BAT) {
+                this.scene?.showPlayerHoldingBat(this.localPlayerId);
+            }
+            this.ui?.showMessage('获得棒球棒！', 'success');
+        } else {
+            // 其他玩家捡起道具，也显示手持效果
+            if (data.holdingItem && data.holdingItem.type === ITEM_TYPES.BASEBALL_BAT) {
+                this.scene?.showPlayerHoldingBat(data.playerId);
+            }
+        }
+    }
+
+    /**
+     * 处理道具刷新
+     */
+    handleItemSpawned(data) {
+        const existingItem = this.items.get(data.itemId);
+        if (existingItem?.mesh) {
+            existingItem.mesh.position.set(data.x, 0, data.z);
+            existingItem.mesh.visible = true;
+        } else {
+            this.addItem({
+                id: data.itemId,
+                type: data.type,
+                x: data.x,
+                z: data.z,
+                isActive: true
+            });
+        }
+    }
+
+    /**
+     * 处理道具使用
+     */
+    handleItemUsed(data) {
+        if (data.playerId === this.localPlayerId) {
+            this.holdingItem = data.holdingItem;
+            // 如果道具用完了，隐藏手持效果
+            if (!this.holdingItem) {
+                this.scene?.hidePlayerHoldingBat(this.localPlayerId);
+            }
+        } else {
+            // 其他玩家使用道具
+            if (!data.holdingItem) {
+                this.scene?.hidePlayerHoldingBat(data.playerId);
+            }
+        }
+    }
+
+    /**
+     * 处理攻击动作广播
+     */
+    handleAttackPerformed(data) {
+        // 播放攻击动画
+        this.scene.playAttackAnimation(data.playerId);
+    }
+
+    /**
+     * 处理玩家被眩晕
+     */
+    handlePlayerStunned(data) {
+        // 显示眩晕特效
+        this.scene.showStunEffect(data.playerId);
+
+        if (data.playerId === this.localPlayerId) {
+            this.isStunned = true;
+            this.ui?.showStunOverlay();
+            this.ui?.showMessage('被击晕了！', 'warning');
+        }
+    }
+
+    /**
+     * 处理玩家眩晕结束
+     */
+    handlePlayerUnstun(data) {
+        // 隐藏眩晕特效
+        this.scene.hideStunEffect(data.playerId);
+
+        if (data.playerId === this.localPlayerId) {
+            this.isStunned = false;
+            this.ui?.hideStunOverlay();
+        }
+    }
+
+    /**
+     * 处理玩家被击中
+     */
+    handlePlayerHit(data) {
+        if (data.playerId === this.localPlayerId) {
+            // 被击中反馈
+            console.log('[BallGame] 被击中！');
+        } else if (data.attackerId === this.localPlayerId) {
+            this.ui?.showMessage('击中敌人！', 'success');
+        }
+    }
+
+    /**
      * 处理游戏结果
      */
     handleGameResult(data) {
@@ -373,6 +579,9 @@ export class BallGame {
         // 更新飞行中的球
         this.scene.updateFlyingBalls(deltaTime);
 
+        // 更新眩晕特效
+        this.scene.updateStunEffects(deltaTime);
+
         // 更新摄像机跟随本地玩家
         const localPlayer = this.players.get(this.localPlayerId);
         if (localPlayer) {
@@ -387,6 +596,9 @@ export class BallGame {
      * 发送移动数据
      */
     sendMove(x, z) {
+        // 眩晕时不能移动
+        if (this.isStunned) return;
+
         network.emit(GAME_EVENTS.PLAYER_MOVE, { x, z });
 
         // 本地预测 - 设置目标位置（动画系统会平滑移动）
@@ -399,9 +611,22 @@ export class BallGame {
     }
 
     /**
+     * 发送朝向数据
+     */
+    sendRotation(rotation) {
+        const now = performance.now();
+        if (now - this.lastRotationSent < this.rotationSendInterval) return;
+
+        this.lastRotationSent = now;
+        this.playerRotation = rotation;
+        network.emit(BALLGAME_EVENTS.PLAYER_ROTATE, { rotation });
+    }
+
+    /**
      * 跳跃
      */
     jump() {
+        if (this.isStunned) return;
         this.scene.makePlayerJump(this.localPlayerId);
     }
 
@@ -409,7 +634,7 @@ export class BallGame {
      * 尝试捡球
      */
     tryPickupBall() {
-        if (this.holdingBall) return;
+        if (this.holdingBall || this.isStunned) return;
 
         network.emit(BALLGAME_EVENTS.PICKUP_BALL);
     }
@@ -418,7 +643,7 @@ export class BallGame {
      * 尝试放球/得分
      */
     tryDropBall() {
-        if (!this.holdingBall) return;
+        if (!this.holdingBall || this.isStunned) return;
 
         network.emit(BALLGAME_EVENTS.DROP_BALL);
     }
@@ -427,12 +652,33 @@ export class BallGame {
      * 投掷球
      */
     throwBall(targetX, targetZ) {
-        if (!this.holdingBall) return;
+        if (!this.holdingBall || this.isStunned) return;
 
         network.emit(BALLGAME_EVENTS.THROW_BALL, {
             targetX,
             targetZ
         });
+    }
+
+    /**
+     * 攻击
+     */
+    attack() {
+        if (this.isStunned) return;
+
+        // 检查是否有道具可用
+        if (!this.holdingItem || this.holdingItem.type !== ITEM_TYPES.BASEBALL_BAT) {
+            // 没有道具，可以给提示
+            return;
+        }
+
+        // 发送攻击请求
+        network.emit(BALLGAME_EVENTS.PLAYER_ATTACK, {
+            rotation: this.playerRotation
+        });
+
+        // 本地立即播放攻击动画
+        this.scene.playAttackAnimation(this.localPlayerId);
     }
 
     /**
@@ -469,6 +715,13 @@ export class BallGame {
         network.off(BALLGAME_EVENTS.GAME_COUNTDOWN);
         network.off(BALLGAME_EVENTS.GAME_RESULT);
         network.off(BALLGAME_EVENTS.BALL_THROWN);
+        network.off(BALLGAME_EVENTS.ITEM_PICKED);
+        network.off(BALLGAME_EVENTS.ITEM_SPAWNED);
+        network.off(BALLGAME_EVENTS.ITEM_USED);
+        network.off(BALLGAME_EVENTS.ATTACK_PERFORMED);
+        network.off(BALLGAME_EVENTS.PLAYER_STUNNED);
+        network.off(BALLGAME_EVENTS.PLAYER_UNSTUN);
+        network.off(BALLGAME_EVENTS.PLAYER_HIT);
 
         // 销毁子模块
         this.scene?.destroy();

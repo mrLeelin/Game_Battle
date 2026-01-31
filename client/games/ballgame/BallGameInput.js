@@ -1,6 +1,7 @@
 /**
  * 抢球大战 - 输入控制
  * 支持键盘和触摸屏
+ * 新增：鼠标朝向、左键攻击
  */
 import { FIELD } from './BallGameScene.js';
 
@@ -21,6 +22,15 @@ export class BallGameInput {
         this.playerZ = 0;
         this.moveSpeed = 0.15;
 
+        // 鼠标位置（世界坐标）
+        this.mouseWorldX = 0;
+        this.mouseWorldZ = 0;
+        this.mouseClientX = 0;
+        this.mouseClientY = 0;
+
+        // 玩家朝向（弧度）
+        this.playerRotation = 0;
+
         // 触摸控制
         this.joystick = null;
         this.joystickActive = false;
@@ -29,6 +39,8 @@ export class BallGameInput {
         // 绑定方法
         this.onKeyDown = this.onKeyDown.bind(this);
         this.onKeyUp = this.onKeyUp.bind(this);
+        this.onMouseMove = this.onMouseMove.bind(this);
+        this.onMouseDown = this.onMouseDown.bind(this);
         this.onTouchStart = this.onTouchStart.bind(this);
         this.onTouchMove = this.onTouchMove.bind(this);
         this.onTouchEnd = this.onTouchEnd.bind(this);
@@ -41,6 +53,10 @@ export class BallGameInput {
         // 键盘事件
         document.addEventListener('keydown', this.onKeyDown);
         document.addEventListener('keyup', this.onKeyUp);
+
+        // 鼠标事件
+        document.addEventListener('mousemove', this.onMouseMove);
+        document.addEventListener('mousedown', this.onMouseDown);
 
         // 检测移动端
         if ('ontouchstart' in window) {
@@ -61,6 +77,7 @@ export class BallGameInput {
                 </div>
             </div>
             <div class="bg-action-zone">
+                <button class="bg-action-btn bg-attack-btn" id="attack-btn">攻击</button>
                 <button class="bg-action-btn bg-jump-btn" id="jump-btn">跳</button>
                 <button class="bg-action-btn" id="action-btn">捡/放</button>
             </div>
@@ -141,6 +158,15 @@ export class BallGameInput {
             .bg-jump-btn:active {
                 background: rgba(68, 255, 68, 0.6);
             }
+
+            .bg-attack-btn {
+                background: rgba(255, 68, 68, 0.3);
+                border-color: #ff4444;
+            }
+
+            .bg-attack-btn:active {
+                background: rgba(255, 68, 68, 0.6);
+            }
         `;
         document.head.appendChild(style);
 
@@ -165,6 +191,48 @@ export class BallGameInput {
             e.preventDefault();
             this.game.jump();
         });
+
+        // 攻击按钮
+        const attackBtn = document.getElementById('attack-btn');
+        attackBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.game.attack();
+        });
+    }
+
+    /**
+     * 鼠标移动 - 更新玩家朝向
+     */
+    onMouseMove(e) {
+        this.mouseClientX = e.clientX;
+        this.mouseClientY = e.clientY;
+
+        // 获取鼠标在3D世界中的位置
+        if (this.game.scene) {
+            const worldPos = this.game.scene.getMouseWorldPosition(e.clientX, e.clientY);
+            this.mouseWorldX = worldPos.x;
+            this.mouseWorldZ = worldPos.z;
+
+            // 更新玩家朝向
+            this.playerRotation = this.game.scene.facePlayerToMouse(
+                this.game.localPlayerId,
+                this.mouseWorldX,
+                this.mouseWorldZ
+            );
+
+            // 发送朝向到服务端
+            this.game.sendRotation(this.playerRotation);
+        }
+    }
+
+    /**
+     * 鼠标按下 - 左键攻击
+     */
+    onMouseDown(e) {
+        // 左键攻击
+        if (e.button === 0) {
+            this.game.attack();
+        }
     }
 
     /**
@@ -301,6 +369,9 @@ export class BallGameInput {
      * 更新（每帧调用）
      */
     update() {
+        // 如果玩家眩晕，不处理移动
+        if (this.game.isStunned) return;
+
         let dx = 0;
         let dz = 0;
 
@@ -354,6 +425,19 @@ export class BallGameInput {
             // 发送移动
             this.game.sendMove(this.playerX, this.playerZ);
         }
+
+        // 持续更新鼠标朝向（即使不移动）
+        if (this.game.scene && this.mouseClientX && this.mouseClientY) {
+            const worldPos = this.game.scene.getMouseWorldPosition(this.mouseClientX, this.mouseClientY);
+            this.mouseWorldX = worldPos.x;
+            this.mouseWorldZ = worldPos.z;
+
+            this.playerRotation = this.game.scene.facePlayerToMouse(
+                this.game.localPlayerId,
+                this.mouseWorldX,
+                this.mouseWorldZ
+            );
+        }
     }
 
     /**
@@ -370,6 +454,8 @@ export class BallGameInput {
     destroy() {
         document.removeEventListener('keydown', this.onKeyDown);
         document.removeEventListener('keyup', this.onKeyUp);
+        document.removeEventListener('mousemove', this.onMouseMove);
+        document.removeEventListener('mousedown', this.onMouseDown);
 
         const controls = document.querySelector('.bg-mobile-controls');
         if (controls) {

@@ -133,6 +133,10 @@ class App {
                 const { BallGame } = await import('./games/ballgame/BallGame.js');
                 return BallGame;
 
+            case 'gunbean':
+                const { GunBeanGame } = await import('./games/gunbean/GunBeanGame.js');
+                return GunBeanGame;
+
             case 'racing':
                 // const { RacingGame } = await import('./games/racing/RacingGame.js');
                 // return RacingGame;

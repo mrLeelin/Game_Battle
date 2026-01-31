@@ -48,6 +48,17 @@ export const GAME_TYPES = {
         gameDuration: 60,
         clientModule: './games/ballgame/BallGame.js',
         serverHandler: './games/ballgame/BallGameHandler.js'
+    },
+    GUNBEAN: {
+        id: 'gunbean',
+        name: '枪豆人',
+        description: '2D海上射击，靠后坐力移动小船，合作生存',
+        icon: '🚤',
+        minPlayers: 1,
+        maxPlayers: 4,
+        gameDuration: 120,
+        clientModule: './games/gunbean/GunBeanGame.js',
+        serverHandler: './games/gunbean/GunBeanHandler.js'
     }
 };
 

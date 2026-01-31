@@ -1,6 +1,7 @@
 /**
  * 抢球大战 - UI管理
  * 显示分数、倒计时、结算界面
+ * 新增：眩晕提示
  */
 import { TEAMS } from './BallGame.js';
 
@@ -58,12 +59,17 @@ export class BallGameUI {
                 </div>
             </div>
 
+            <!-- 眩晕提示 -->
+            <div class="bg-stun-overlay" style="display:none">
+                <div class="bg-stun-text">⭐ 眩晕中 ⭐</div>
+            </div>
+
             <!-- 消息提示 -->
             <div class="bg-message" style="display:none"></div>
 
             <!-- 操作提示 -->
             <div class="bg-controls">
-                <div class="bg-control-hint">WASD/摇杆 移动 | 空格/按钮 捡球/放球</div>
+                <div class="bg-control-hint">WASD 移动 | 鼠标瞄准 | 左键攻击 | 空格 捡球/投球</div>
             </div>
 
             <!-- 结算界面 -->
@@ -159,10 +165,41 @@ export class BallGameUI {
                 text-align: right;
             }
 
+            /* 眩晕提示 */
+            .bg-stun-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(255, 0, 0, 0.2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: stunPulse 0.5s ease-in-out infinite;
+            }
+
+            .bg-stun-text {
+                font-size: 48px;
+                color: #fff;
+                text-shadow: 0 0 20px #ff0000;
+                animation: stunBounce 0.3s ease-in-out infinite;
+            }
+
+            @keyframes stunPulse {
+                0%, 100% { background: rgba(255, 0, 0, 0.1); }
+                50% { background: rgba(255, 0, 0, 0.3); }
+            }
+
+            @keyframes stunBounce {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+            }
+
             /* 消息提示 */
             .bg-message {
                 position: absolute;
-                top: 50%;
+                top: 40%;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 background: rgba(0, 0, 0, 0.8);
@@ -176,6 +213,11 @@ export class BallGameUI {
             .bg-message.success {
                 color: #44ff44;
                 border: 2px solid #44ff44;
+            }
+
+            .bg-message.warning {
+                color: #ffaa00;
+                border: 2px solid #ffaa00;
             }
 
             @keyframes messagePopup {
@@ -196,7 +238,7 @@ export class BallGameUI {
 
             .bg-control-hint {
                 color: #888;
-                font-size: 14px;
+                font-size: 12px;
             }
 
             /* 结算界面 */
@@ -326,13 +368,35 @@ export class BallGameUI {
     }
 
     /**
+     * 显示眩晕提示
+     */
+    showStunOverlay() {
+        const overlay = this.container.querySelector('.bg-stun-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+    }
+
+    /**
+     * 隐藏眩晕提示
+     */
+    hideStunOverlay() {
+        const overlay = this.container.querySelector('.bg-stun-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    /**
      * 显示消息
      */
     showMessage(text, type = 'info') {
         const el = this.container.querySelector('.bg-message');
         if (el) {
             el.textContent = text;
-            el.className = 'bg-message' + (type === 'success' ? ' success' : '');
+            el.className = 'bg-message';
+            if (type === 'success') el.classList.add('success');
+            if (type === 'warning') el.classList.add('warning');
             el.style.display = 'block';
 
             setTimeout(() => {

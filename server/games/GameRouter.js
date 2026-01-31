@@ -4,6 +4,7 @@
 import { GAME_EVENTS } from '../../shared/Events.js';
 import { FPSGameHandler } from './fps/FPSGameHandler.js';
 import { BallGameHandler } from './ballgame/BallGameHandler.js';
+import { GunBeanHandler } from './gunbean/GunBeanHandler.js';
 
 export class GameRouter {
     constructor(io, playerManager, roomManager) {
@@ -14,7 +15,8 @@ export class GameRouter {
         // 游戏处理器
         this.handlers = {
             fps: new FPSGameHandler(io, playerManager, roomManager),
-            ballgame: new BallGameHandler(io, playerManager, roomManager)
+            ballgame: new BallGameHandler(io, playerManager, roomManager),
+            gunbean: new GunBeanHandler(io, playerManager, roomManager)
         };
     }
 
@@ -37,6 +39,9 @@ export class GameRouter {
 
         // BallGame 专用事件
         this.handlers.ballgame?.bindEvents(socket);
+
+        // GunBean 专用事件
+        this.handlers.gunbean?.bindEvents(socket);
     }
 
     /**
