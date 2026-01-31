@@ -125,27 +125,9 @@ class App {
      */
     async loadGameModule(gameType) {
         switch (gameType) {
-            case 'fps':
-                const { FPSGame } = await import('./games/fps/FPSGame.js');
-                return FPSGame;
-
-            case 'ballgame':
-                const { BallGame } = await import('./games/ballgame/BallGame.js');
-                return BallGame;
-
             case 'gunbean':
                 const { GunBeanGame } = await import('./games/gunbean/GunBeanGame.js');
                 return GunBeanGame;
-
-            case 'racing':
-                // const { RacingGame } = await import('./games/racing/RacingGame.js');
-                // return RacingGame;
-                throw new Error('赛车游戏尚未实现');
-
-            case 'puzzle':
-                // const { PuzzleGame } = await import('./games/puzzle/PuzzleGame.js');
-                // return PuzzleGame;
-                throw new Error('解谜游戏尚未实现');
 
             default:
                 throw new Error(`未知游戏类型: ${gameType}`);

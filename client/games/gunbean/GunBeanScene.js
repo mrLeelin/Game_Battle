@@ -10,6 +10,7 @@ import monster5Url from '../../../texture/qiangdouren/monster_5.png';
 import monster6Url from '../../../texture/qiangdouren/monster_6.png';
 import monster7Url from '../../../texture/qiangdouren/monster_7.png';
 import monster8Url from '../../../texture/qiangdouren/monster_8.png';
+import playerUrl from '../../../texture/qiangdouren/player.png';
 import water1Url from '../../../texture/qiangdouren/water_1.png';
 import water2Url from '../../../texture/qiangdouren/water_2.png';
 import { gunBeanAudio } from './GunBeanAudio.js';
@@ -33,6 +34,7 @@ const TEXTURE_CONFIG = {
         7: monster7Url,
         8: monster8Url
     },
+    player: playerUrl,
     water: {
         wave: water1Url,    // 上层（波纹）
         base: water2Url     // 底层
@@ -186,6 +188,15 @@ export class GunBeanScene {
                 }
             }));
         });
+
+        // 加载主角贴图
+        if (TEXTURE_CONFIG.player) {
+            promises.push(loadImage(TEXTURE_CONFIG.player).then(img => {
+                if (img) {
+                    this.textures.player = img;
+                }
+            }));
+        }
 
         // 加载水面贴图
         Object.entries(TEXTURE_CONFIG.water).forEach(([type, src]) => {
@@ -1366,23 +1377,37 @@ export class GunBeanScene {
 
         const color = player.isDead ? '#666666' : player.color;
 
-        // === 绘制角色身体（圆形豆子）===
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(playerX, playerY, size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // === 绘制角色身体 (使用贴图或圆形兜底) ===
+        if (this.textures.player && this.texturesLoaded) {
+            // 保持原有尺寸 (半径14, 直径28)
+            const imgSize = size * 2;
+            ctx.drawImage(this.textures.player, playerX - size, playerY - size, imgSize, imgSize);
+            
+            // 如果玩家死亡，叠加一层灰度或半透明
+            if (player.isDead) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.beginPath();
+                ctx.arc(playerX, playerY, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(playerX, playerY, size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-        // === 绘制眼睛（两个小黑点）===
-        ctx.fillStyle = '#333';
-        const eyeOffset = size * 0.3;
-        const eyeSize = size * 0.18;
-        ctx.beginPath();
-        ctx.arc(playerX - eyeOffset, playerY - size * 0.1, eyeSize, 0, Math.PI * 2);
-        ctx.arc(playerX + eyeOffset, playerY - size * 0.1, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
+            // === 绘制眼睛 (仅在兜底模式下) ===
+            ctx.fillStyle = '#333';
+            const eyeOffset = size * 0.3;
+            const eyeSize = size * 0.18;
+            ctx.beginPath();
+            ctx.arc(playerX - eyeOffset, playerY - size * 0.1, eyeSize, 0, Math.PI * 2);
+            ctx.arc(playerX + eyeOffset, playerY - size * 0.1, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         // === 绘制手持枪（根据瞄准角度旋转，补偿-90度）===
         ctx.save();

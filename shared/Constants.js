@@ -5,8 +5,8 @@
 
 // 房间配置
 export const ROOM = {
-    MAX_PLAYERS: 8,
-    MIN_PLAYERS: 2,
+    MAX_PLAYERS: 4,
+    MIN_PLAYERS: 1,
     STATUS: {
         WAITING: 'waiting',   // 匹配中 - 可加入
         RUNNING: 'running'    // 游戏中 - 不可加入

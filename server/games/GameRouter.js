@@ -2,8 +2,6 @@
  * 游戏路由器 - 根据游戏类型分发事件到对应处理器
  */
 import { GAME_EVENTS } from '../../shared/Events.js';
-import { FPSGameHandler } from './fps/FPSGameHandler.js';
-import { BallGameHandler } from './ballgame/BallGameHandler.js';
 import { GunBeanHandler } from './gunbean/GunBeanHandler.js';
 
 export class GameRouter {
@@ -14,8 +12,6 @@ export class GameRouter {
 
         // 游戏处理器
         this.handlers = {
-            fps: new FPSGameHandler(io, playerManager, roomManager),
-            ballgame: new BallGameHandler(io, playerManager, roomManager),
             gunbean: new GunBeanHandler(io, playerManager, roomManager)
         };
     }
@@ -33,12 +29,6 @@ export class GameRouter {
         socket.on(GAME_EVENTS.PLAYER_ACTION, (data) => {
             this.routeEvent(socket, 'onPlayerAction', data);
         });
-
-        // FPS 专用事件 - 直接绑定到 FPS 处理器
-        this.handlers.fps?.bindEvents(socket);
-
-        // BallGame 专用事件
-        this.handlers.ballgame?.bindEvents(socket);
 
         // GunBean 专用事件
         this.handlers.gunbean?.bindEvents(socket);

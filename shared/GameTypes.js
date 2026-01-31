@@ -4,54 +4,9 @@
  */
 
 export const GAME_TYPES = {
-    FPS: {
-        id: 'fps',
-        name: 'FPS 射击',
-        description: '赛博朋克风格第一人称射击',
-        icon: '🔫',
-        minPlayers: 2,
-        maxPlayers: 8,
-        // 客户端游戏模块路径（动态加载用）
-        clientModule: './games/fps/FPSGame.js',
-        // 服务端处理器路径
-        serverHandler: './games/fps/FPSGameHandler.js'
-    },
-    RACING: {
-        id: 'racing',
-        name: '竞速赛车',
-        description: '多人竞速比赛',
-        icon: '🏎️',
-        minPlayers: 2,
-        maxPlayers: 8,
-        clientModule: './games/racing/RacingGame.js',
-        serverHandler: './games/racing/RacingGameHandler.js'
-    },
-    PUZZLE: {
-        id: 'puzzle',
-        name: '解谜合作',
-        description: '团队合作解谜',
-        icon: '🧩',
-        minPlayers: 1,
-        maxPlayers: 4,
-        clientModule: './games/puzzle/PuzzleGame.js',
-        serverHandler: './games/puzzle/PuzzleGameHandler.js'
-    },
-    BALLGAME: {
-        id: 'ballgame',
-        name: '抢球大战',
-        description: '4队混战，抢球得分',
-        icon: '⚽',
-        minPlayers: 2,
-        maxPlayers: 8,
-        teams: 4,
-        playersPerTeam: 2,
-        gameDuration: 60,
-        clientModule: './games/ballgame/BallGame.js',
-        serverHandler: './games/ballgame/BallGameHandler.js'
-    },
     GUNBEAN: {
         id: 'gunbean',
-        name: '枪豆人',
+        name: '4猴一舟',
         description: '2D海上射击，靠后坐力移动小船，合作生存',
         icon: '🚤',
         minPlayers: 1,

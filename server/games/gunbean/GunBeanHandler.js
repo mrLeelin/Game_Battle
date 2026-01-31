@@ -918,6 +918,12 @@ export class GunBeanHandler {
                     enemy.y += (dy / dist) * speed * deltaTime;
                 }
 
+                // 边界限制
+                const halfW = CONFIG.ARENA_WIDTH / 2 - CONFIG.ENEMY_RADIUS;
+                const halfH = CONFIG.ARENA_HEIGHT / 2 - CONFIG.ENEMY_RADIUS;
+                enemy.x = Math.max(-halfW, Math.min(halfW, enemy.x));
+                enemy.y = Math.max(-halfH, Math.min(halfH, enemy.y));
+
                 if (dist < CONFIG.ENEMY_RADIUS + CONFIG.BOAT_RADIUS) {
                     // ========== 护盾冲撞效果 ==========
                     // 计算船上所有存活玩家的护盾冲撞等级总和
@@ -1025,6 +1031,12 @@ export class GunBeanHandler {
                     orb.x += (dx / dist) * speed * deltaTime;
                     orb.y += (dy / dist) * speed * deltaTime;
                 }
+
+                // 边界限制
+                const halfW = CONFIG.ARENA_WIDTH / 2 - CONFIG.EXP_ORB_RADIUS;
+                const halfH = CONFIG.ARENA_HEIGHT / 2 - CONFIG.EXP_ORB_RADIUS;
+                orb.x = Math.max(-halfW, Math.min(halfW, orb.x));
+                orb.y = Math.max(-halfH, Math.min(halfH, orb.y));
 
                 // 收集
                 if (dist < CONFIG.BOAT_RADIUS) {
