@@ -96,7 +96,7 @@ const CONFIG = {
     BULLET_DAMAGE: 1,       // 子弹对船只的伤害
     ENEMY_DAMAGE: 1,        // 敌人对船只的伤害（1颗心）
     // 弹药系统
-    MAX_AMMO: 3,            // 默认弹匣容量（3发）
+    MAX_AMMO: 5,            // 默认弹匣容量（5发）
     RELOAD_TIME: 1500,      // 换弹时间（毫秒）
     // 经验系统
     EXP_ORB_RADIUS: EXP_ORB_CONFIG.RADIUS,
@@ -1750,6 +1750,12 @@ export class GunBeanHandler {
             const knockbackY = (bullet.vy / bulletSpeed) * CONFIG.KNOCKBACK_FORCE;
             enemy.x += knockbackX * 0.5;  // 立即位移
             enemy.y += knockbackY * 0.5;
+
+            // 边界限制
+            const halfW = CONFIG.ARENA_WIDTH / 2 - CONFIG.ENEMY_RADIUS;
+            const halfH = CONFIG.ARENA_HEIGHT / 2 - CONFIG.ENEMY_RADIUS;
+            enemy.x = Math.max(-halfW, Math.min(halfW, enemy.x));
+            enemy.y = Math.max(-halfH, Math.min(halfH, enemy.y));
         }
 
         // 应用特殊效果

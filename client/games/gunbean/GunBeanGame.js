@@ -46,8 +46,8 @@ export class GunBeanGame {
         this.isDead = false;
 
         // 弹药系统
-        this.ammo = 3;
-        this.maxAmmo = 3;
+        this.ammo = 5;
+        this.maxAmmo = 5;
         this.isReloading = false;
 
         // 肉鸽系统

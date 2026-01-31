@@ -9,7 +9,7 @@
 export const DEFAULT_WEAPON = {
     id: 'basic',
     name: '基础枪',
-    damage: 1,
+    damage: 3,
     fireRate: 200,      // 射击间隔（毫秒）
     bulletCount: 1,
     spread: 0,
