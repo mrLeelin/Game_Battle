@@ -73,6 +73,7 @@ export class GunBeanScene {
         this.bullets = new Map();
         this.enemies = new Map();
         this.expOrbs = new Map();  // 经验球
+        this.items = new Map();    // 道具（回血、磁铁等）
         this.particles = [];
         this.physicsParticles = [];  // 物理粒子（带重力和地面碰撞）
         this.waterRipples = [];      // 水面浪花/波纹
@@ -742,6 +743,128 @@ export class GunBeanScene {
     }
 
     /**
+     * 创建道具
+     */
+    createItem(itemData) {
+        const item = {
+            id: itemData.id,
+            x: itemData.x || 0,
+            y: itemData.y || 0,
+            type: itemData.type,  // 'health' | 'magnet'
+            pulsePhase: Math.random() * Math.PI * 2,
+            createdAt: Date.now()
+        };
+        this.items.set(itemData.id, item);
+        return item;
+    }
+
+    /**
+     * 移除道具（带收集效果）
+     */
+    removeItem(itemId) {
+        const item = this.items.get(itemId);
+        if (item) {
+            // 创建收集粒子效果
+            this.createItemCollectEffect(item.x, item.y, item.type);
+            this.items.delete(itemId);
+        }
+    }
+
+    /**
+     * 创建道具收集效果
+     */
+    createItemCollectEffect(x, y, type) {
+        const color = type === 'health' ? '#ff6b6b' : '#4da6ff';
+        const particleCount = 8;
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = 2 + Math.random() * 2;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                radius: 4 + Math.random() * 4,
+                life: 0.8
+            });
+        }
+    }
+
+    /**
+     * 绘制道具
+     */
+    drawItem(ctx, item) {
+        const pulse = Math.sin(item.pulsePhase + Date.now() / 200) * 0.2 + 1;
+        const size = 18 * this.scale * pulse;
+
+        ctx.save();
+        ctx.translate(item.x, item.y);
+
+        // 发光效果
+        const glowColor = item.type === 'health' ? 'rgba(255, 107, 107, 0.4)' : 'rgba(77, 166, 255, 0.4)';
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 2);
+        gradient.addColorStop(0, glowColor);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 绘制图标
+        ctx.font = `${size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const icon = item.type === 'health' ? '❤️' : '🧲';
+        ctx.fillText(icon, 0, 0);
+
+        ctx.restore();
+    }
+
+    /**
+     * 创建全屏磁铁脉冲效果
+     */
+    createMagnetPulse(x, y) {
+        this.magnetPulses = this.magnetPulses || [];
+        this.magnetPulses.push({
+            x: x,
+            y: y,
+            radius: 0,
+            maxRadius: 800,
+            alpha: 1,
+            createdAt: Date.now()
+        });
+    }
+
+    /**
+     * 绘制磁铁脉冲
+     */
+    drawMagnetPulses(ctx) {
+        if (!this.magnetPulses) return;
+        const now = Date.now();
+        const duration = 500; // 0.5秒
+
+        this.magnetPulses = this.magnetPulses.filter(pulse => {
+            const elapsed = now - pulse.createdAt;
+            if (elapsed >= duration) return false;
+
+            const progress = elapsed / duration;
+            pulse.radius = pulse.maxRadius * progress;
+            pulse.alpha = 1 - progress;
+
+            ctx.save();
+            ctx.strokeStyle = `rgba(77, 166, 255, ${pulse.alpha * 0.6})`;
+            ctx.lineWidth = 4 * this.scale;
+            ctx.beginPath();
+            ctx.arc(pulse.x, pulse.y, pulse.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            return true;
+        });
+    }
+
+    /**
      * 创建爆炸效果
      */
     createExplosion(x, y) {
@@ -1045,6 +1168,14 @@ export class GunBeanScene {
         this.expOrbs.forEach(orb => {
             this.drawExpOrb(ctx, orb);
         });
+
+        // 绘制道具
+        this.items.forEach(item => {
+            this.drawItem(ctx, item);
+        });
+
+        // 绘制磁铁脉冲效果
+        this.drawMagnetPulses(ctx);
 
         // 绘制敌人
         this.enemies.forEach(enemy => {
@@ -1985,6 +2116,7 @@ export class GunBeanScene {
         this.bullets.clear();
         this.enemies.clear();
         this.expOrbs.clear();
+        this.items.clear();
         this.particles = [];
         this.physicsParticles = [];
 

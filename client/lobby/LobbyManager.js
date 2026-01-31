@@ -55,6 +55,14 @@ class LobbyManager {
             eventBus.emit('room:stateUpdated', state);
         });
 
+        // 游戏类型变更
+        network.on(ROOM_EVENTS.GAME_TYPE_CHANGED, (data) => {
+            if (this.currentRoom) {
+                this.currentRoom.gameType = data.gameType;
+                eventBus.emit('room:stateUpdated', this.currentRoom);
+            }
+        });
+
         // 游戏开始
         network.on(ROOM_EVENTS.GAME_STARTING, (data) => {
             eventBus.emit('room:gameStarting', data);

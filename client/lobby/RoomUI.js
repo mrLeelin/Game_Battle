@@ -8,6 +8,7 @@ import { getGameList, getGameConfig } from '../../shared/GameTypes.js';
 import { ScrollableList } from '../ui/ScrollableList.js';
 import { transitionManager } from '../ui/TransitionManager.js';
 import { avatarManager } from './AvatarManager.js';
+import { modal } from '../ui/Modal.js';
 
 class RoomUI {
     constructor() {
@@ -93,9 +94,20 @@ class RoomUI {
         });
 
         // 游戏类型选择
-        gameTypeSelector?.addEventListener('change', (e) => {
-            lobbyManager.setGameType(e.target.value);
-        });
+        if (gameTypeSelector) {
+            // 拦截点击事件
+            gameTypeSelector.addEventListener('mousedown', (e) => {
+                if (!lobbyManager.isHost()) {
+                    e.preventDefault(); // 阻止下拉框展开
+                    modal.alert('您非队长，无法选择游戏', '提示');
+                }
+            });
+
+            // 实际变更事件
+            gameTypeSelector.addEventListener('change', (e) => {
+                lobbyManager.setGameType(e.target.value);
+            });
+        }
 
         // 弹幕发送按钮
         danmakuSendBtn?.addEventListener('click', () => {
@@ -186,9 +198,9 @@ class RoomUI {
         // 更新玩家列表
         this.renderPlayerList(state.players, state.hostId);
 
-        // 更新游戏类型选择器（仅房主可用）
+        // 更新游戏类型选择器（不再禁用，改为点击拦截）
         if (this.elements.gameTypeSelector) {
-            this.elements.gameTypeSelector.disabled = !isHost;
+            // this.elements.gameTypeSelector.disabled = !isHost;
             if (state.gameType) {
                 this.elements.gameTypeSelector.value = state.gameType;
             }

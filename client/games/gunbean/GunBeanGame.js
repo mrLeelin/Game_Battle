@@ -178,6 +178,21 @@ export class GunBeanGame {
             this.handleExpOrbCollected(data);
         });
 
+        // 道具生成
+        network.on(GUNBEAN_EVENTS.ITEM_SPAWNED, (data) => {
+            this.handleItemSpawned(data);
+        });
+
+        // 道具被收集
+        network.on(GUNBEAN_EVENTS.ITEM_COLLECTED, (data) => {
+            this.handleItemCollected(data);
+        });
+
+        // 全屏磁铁脉冲
+        network.on(GUNBEAN_EVENTS.MAGNET_PULSE, (data) => {
+            this.handleMagnetPulse(data);
+        });
+
         // 经验更新
         network.on(GUNBEAN_EVENTS.EXP_UPDATE, (data) => {
             if (data.playerId === this.localPlayerId) {
@@ -639,10 +654,6 @@ export class GunBeanGame {
 
         // 敌人死亡震屏效果（增强）
         this.scene.startScreenShake(20, 250);
-
-        if (data.killerId === this.localPlayerId) {
-            this.ui.showMessage('+1 击杀！', 'success');
-        }
     }
 
     /**
@@ -686,6 +697,38 @@ export class GunBeanGame {
         if (data.playerId === this.localPlayerId) {
             // 可以添加收集音效或粒子效果
         }
+    }
+
+    /**
+     * 处理道具生成
+     */
+    handleItemSpawned(data) {
+        this.scene.createItem(data);
+    }
+
+    /**
+     * 处理道具被收集
+     */
+    handleItemCollected(data) {
+        this.scene.removeItem(data.itemId);
+
+        // 如果是本地玩家的船收集了道具
+        if (this.localPlayer && this.localPlayer.boatId === data.boatId) {
+            if (data.type === 'health') {
+                // 回血效果
+                this.ui.showFloatingText('+2 ❤️', this.ui.container.querySelector('.gb-hearts'), '#ff6b6b');
+            } else if (data.type === 'magnet') {
+                // 磁铁效果
+                this.ui.showFloatingText('全屏磁铁!', this.ui.container, '#4da6ff');
+            }
+        }
+    }
+
+    /**
+     * 处理全屏磁铁脉冲
+     */
+    handleMagnetPulse(data) {
+        this.scene.createMagnetPulse(data.x, data.y);
     }
 
     /**
@@ -1048,6 +1091,9 @@ export class GunBeanGame {
         // 清理肉鸽系统事件
         network.off(GUNBEAN_EVENTS.EXP_ORB_SPAWNED);
         network.off(GUNBEAN_EVENTS.EXP_ORB_COLLECTED);
+        network.off(GUNBEAN_EVENTS.ITEM_SPAWNED);
+        network.off(GUNBEAN_EVENTS.ITEM_COLLECTED);
+        network.off(GUNBEAN_EVENTS.MAGNET_PULSE);
         network.off(GUNBEAN_EVENTS.EXP_UPDATE);
         network.off(GUNBEAN_EVENTS.LEVEL_UP);
         network.off(GUNBEAN_EVENTS.SKILL_CHOICES);

@@ -161,5 +161,10 @@ export const GUNBEAN_EVENTS = {
 
     // 技能视觉反馈事件
     EXPLOSIVE_EFFECT: 'gunbean:explosiveEffect',    // 爆炸效果视觉
-    CHAIN_EFFECT: 'gunbean:chainEffect'            // 闪电链效果视觉
+    CHAIN_EFFECT: 'gunbean:chainEffect',           // 闪电链效果视觉
+
+    // 道具系统事件
+    ITEM_SPAWNED: 'gunbean:itemSpawned',           // 道具生成
+    ITEM_COLLECTED: 'gunbean:itemCollected',       // 道具被收集
+    MAGNET_PULSE: 'gunbean:magnetPulse'            // 全屏磁铁脉冲效果
 };

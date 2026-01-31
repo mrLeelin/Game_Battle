@@ -19,10 +19,9 @@ export const DEFAULT_WEAPON = {
 // ==================== 技能配置 ====================
 // 升级时随机抽取3个供玩家选择，技能可叠加
 export const ALL_SKILLS = [
-    // ==================== 基础技能 ====================
     {
         id: 'bounce',
-        name: '弹跳',
+        name: '弹射',
         icon: '🔄',
         rarity: 'common',
         description: '子弹碰墙反弹',
@@ -30,50 +29,22 @@ export const ALL_SKILLS = [
         maxLevel: 5
     },
     {
-        id: 'pierce',
-        name: '穿透',
-        icon: '➡️',
+        id: 'scatter',
+        name: '散射',
+        icon: '🌟',
         rarity: 'common',
-        description: '子弹穿透敌人',
-        effectPerLevel: '+1个穿透',
+        description: '发射扇形散射子弹',
+        effectPerLevel: '+2颗分散子弹',
         maxLevel: 5
     },
     {
-        id: 'heal',
-        name: '修复',
-        icon: '💚',
+        id: 'splitBullet',
+        name: '分裂弹',
+        icon: '💠',
         rarity: 'common',
-        description: '立即恢复船只HP',
-        effectPerLevel: '+3点HP',
-        maxLevel: 10,
-        immediate: true  // 立即生效，不是持续效果
-    },
-    {
-        id: 'speed',
-        name: '加速',
-        icon: '💨',
-        rarity: 'common',
-        description: '后坐力移动增强',
-        effectPerLevel: '+15%速度',
+        description: '子弹命中后分裂成小子弹',
+        effectPerLevel: '+2颗分裂弹',
         maxLevel: 5
-    },
-    {
-        id: 'shield',
-        name: '护盾',
-        icon: '🛡️',
-        rarity: 'rare',
-        description: '获得护盾抵挡伤害',
-        effectPerLevel: '+1层护盾',
-        maxLevel: 5
-    },
-    {
-        id: 'double',
-        name: '双发',
-        icon: '✌️',
-        rarity: 'rare',
-        description: '额外发射子弹',
-        effectPerLevel: '+1颗子弹',
-        maxLevel: 3
     },
     {
         id: 'damage',
@@ -94,341 +65,16 @@ export const ALL_SKILLS = [
         maxLevel: 5
     },
     {
-        id: 'ammoCapacity',
-        name: '扩容',
-        icon: '📦',
+        id: 'heal',
+        name: '回复',
+        icon: '❤️',
         rarity: 'common',
-        description: '增加弹匣容量',
-        effectPerLevel: '+2发子弹',
-        maxLevel: 5
-    },
-    {
-        id: 'lifesteal',
-        name: '吸血',
-        icon: '🩸',
-        rarity: 'rare',
-        description: '击杀敌人恢复HP',
-        effectPerLevel: '+1HP/击杀',
-        maxLevel: 3
-    },
-    {
-        id: 'crit',
-        name: '暴击',
-        icon: '💥',
-        rarity: 'rare',
-        description: '有概率造成双倍伤害',
-        effectPerLevel: '+10%暴击率',
-        maxLevel: 5
-    },
-    {
-        id: 'range',
-        name: '射程',
-        icon: '🎯',
-        rarity: 'common',
-        description: '子弹飞行距离延长',
-        effectPerLevel: '+20%射程',
-        maxLevel: 3
-    },
-
-    // ==================== 新增高级技能 ====================
-    {
-        id: 'scatter',
-        name: '散射',
-        icon: '🌟',
-        rarity: 'rare',
-        description: '发射扇形散射子弹',
-        effectPerLevel: '+2颗分散子弹',
-        maxLevel: 3
-    },
-    {
-        id: 'chain',
-        name: '闪电链',
-        icon: '⚡',
-        rarity: 'epic',
-        description: '子弹命中后跳跃至附近敌人',
-        effectPerLevel: '+1次跳跃',
-        maxLevel: 3
-    },
-    {
-        id: 'explosive',
-        name: '爆炸',
-        icon: '💣',
-        rarity: 'epic',
-        description: '子弹命中后产生范围爆炸',
-        effectPerLevel: '+30%爆炸范围',
-        maxLevel: 3
-    },
-    {
-        id: 'homing',
-        name: '追踪',
-        icon: '🎯',
-        rarity: 'rare',
-        description: '子弹轻微追踪最近敌人',
-        effectPerLevel: '+15%追踪强度',
-        maxLevel: 3
-    },
-    {
-        id: 'freeze',
-        name: '冰冻',
-        icon: '❄️',
-        rarity: 'rare',
-        description: '命中敌人使其减速',
-        effectPerLevel: '+15%减速效果',
-        maxLevel: 3
-    },
-    {
-        id: 'poison',
-        name: '毒素',
-        icon: '☠️',
-        rarity: 'rare',
-        description: '命中敌人持续掉血',
-        effectPerLevel: '+1秒持续时间',
-        maxLevel: 3
-    },
-    {
-        id: 'magnet',
-        name: '磁铁',
-        icon: '🧲',
-        rarity: 'common',
-        description: '增加经验球吸收范围',
-        effectPerLevel: '+50%吸收范围',
-        maxLevel: 3
-    },
-    {
-        id: 'expBonus',
-        name: '经验加成',
-        icon: '📈',
-        rarity: 'common',
-        description: '获得的经验值增加',
-        effectPerLevel: '+15%经验',
-        maxLevel: 5
-    },
-    {
-        id: 'bulletSpeed',
-        name: '子弹加速',
-        icon: '🚀',
-        rarity: 'common',
-        description: '子弹飞行速度提升',
-        effectPerLevel: '+20%弹速',
-        maxLevel: 3
-    },
-    {
-        id: 'damageReduction',
-        name: '减伤',
-        icon: '🧱',
-        rarity: 'common',
-        description: '受到的伤害降低',
-        effectPerLevel: '-10%伤害',
-        maxLevel: 5
-    },
-    {
-        id: 'regen',
-        name: '再生',
-        icon: '💗',
-        rarity: 'common',
-        description: '每隔一段时间恢复HP',
-        effectPerLevel: '+0.5HP/10秒',
-        maxLevel: 3
-    },
-    {
-        id: 'luck',
-        name: '幸运',
-        icon: '🍀',
-        rarity: 'rare',
-        description: '增加稀有技能出现概率',
-        effectPerLevel: '+10%稀有率',
-        maxLevel: 3
-    },
-    {
-        id: 'multishot',
-        name: '多重射击',
-        icon: '🔫',
-        rarity: 'epic',
-        description: '同时向多个方向射击',
-        effectPerLevel: '+1个射击方向',
-        maxLevel: 2
-    },
-
-    // ==================== 第二阶段技能 ====================
-    {
-        id: 'fireBullet',
-        name: '火焰弹',
-        icon: '🔥',
-        rarity: 'rare',
-        description: '命中敌人造成燃烧伤害',
-        effectPerLevel: '+1秒燃烧',
-        maxLevel: 3
-    },
-    {
-        id: 'shieldRam',
-        name: '护盾冲撞',
-        icon: '💢',
-        rarity: 'rare',
-        description: '船只撞击敌人时造成伤害',
-        effectPerLevel: '+2点撞击伤害',
-        maxLevel: 3
-    },
-    {
-        id: 'combo',
-        name: '连击',
-        icon: '🔗',
-        rarity: 'rare',
-        description: '连续命中增加伤害',
-        effectPerLevel: '+5%伤害/连击',
-        maxLevel: 5
-    },
-    {
-        id: 'timeSlow',
-        name: '时间减缓',
-        icon: '⏳',
-        rarity: 'epic',
-        description: '周围敌人移动速度降低',
-        effectPerLevel: '+10%减速范围',
-        maxLevel: 3
-    },
-
-    // ==================== 第三阶段技能 ====================
-    {
-        id: 'splitBullet',
-        name: '分裂弹',
-        icon: '💠',
-        rarity: 'rare',
-        description: '子弹命中后分裂成小子弹',
-        effectPerLevel: '+2颗分裂弹',
-        maxLevel: 3
-    },
-    {
-        id: 'boomerang',
-        name: '回旋镖',
-        icon: '🪃',
-        rarity: 'rare',
-        description: '子弹飞出后返回',
-        effectPerLevel: '+1次返回',
-        maxLevel: 2
-    },
-    {
-        id: 'orbitalBullet',
-        name: '弹幕',
-        icon: '🌀',
-        rarity: 'rare',
-        description: '射击时额外发射环绕子弹',
-        effectPerLevel: '+1颗环绕弹',
-        maxLevel: 3
-    },
-    {
-        id: 'empPulse',
-        name: '电磁脉冲',
-        icon: '📡',
-        rarity: 'epic',
-        description: '定期释放脉冲眩晕周围敌人',
-        effectPerLevel: '+0.5秒眩晕',
-        maxLevel: 3
-    },
-
-    // ==================== 第四阶段技能 ====================
-    {
-        id: 'laserGun',
-        name: '激光炮',
-        icon: '🔦',
-        rarity: 'epic',
-        description: '每隔一段时间发射激光，有巨大后坐力',
-        effectPerLevel: '-5秒冷却时间',
-        maxLevel: 3
-    },
-    {
-        id: 'blackHole',
-        name: '黑洞',
-        icon: '🕳️',
-        rarity: 'epic',
-        description: '击杀敌人生成黑洞吸引周围敌人',
-        effectPerLevel: '+20%吸引范围',
-        maxLevel: 2
-    },
-    {
-        id: 'ghostShip',
-        name: '幽灵船',
-        icon: '👻',
-        rarity: 'epic',
-        description: '受伤后短暂无敌',
-        effectPerLevel: '+0.3秒无敌时间',
-        maxLevel: 3
-    },
-    {
-        id: 'revenge',
-        name: '复仇',
-        icon: '😈',
-        rarity: 'epic',
-        description: '受伤时对周围敌人造成伤害',
-        effectPerLevel: '+50%反伤范围',
-        maxLevel: 3
+        description: '立即恢复生命值',
+        effectPerLevel: '+3生命值',
+        maxLevel: 5,
+        immediate: true
     }
 ];
-
-// ==================== 传说技能配置 ====================
-// 通过融合两个3级技能获得
-export const LEGENDARY_SKILLS = [
-    {
-        id: 'destructionStrike',
-        name: '毁灭打击',
-        icon: '💀',
-        rarity: 'legendary',
-        description: '暴击造成3倍伤害，暴击率+20%',
-        effectPerLevel: '+0.5倍暴击伤害，+10%暴击率',
-        maxLevel: 3,
-        // 融合配方
-        recipe: ['damage', 'crit']
-    },
-    {
-        id: 'bulletStorm',
-        name: '弹幕风暴',
-        icon: '🌪️',
-        rarity: 'legendary',
-        description: '同时发射8颗子弹，覆盖180°扇形',
-        effectPerLevel: '+4颗子弹，+60°覆盖',
-        maxLevel: 3,
-        recipe: ['double', 'scatter']
-    },
-    {
-        id: 'timeFreeze',
-        name: '时间冻结',
-        icon: '⏸️',
-        rarity: 'legendary',
-        description: '每15秒冻结所有敌人2秒',
-        effectPerLevel: '+1秒冻结，-3秒冷却',
-        maxLevel: 3,
-        recipe: ['freeze', 'timeSlow']
-    },
-    {
-        id: 'lifeShield',
-        name: '生命护盾',
-        icon: '💎',
-        rarity: 'legendary',
-        description: '护盾吸收的伤害转化为HP，护盾上限+5',
-        effectPerLevel: '+3护盾上限，+50%转化效率',
-        maxLevel: 3,
-        recipe: ['shield', 'lifesteal']
-    },
-    {
-        id: 'gravityField',
-        name: '引力场',
-        icon: '🌀',
-        rarity: 'legendary',
-        description: '持续吸引经验球和敌人，吸引范围覆盖全屏',
-        effectPerLevel: '+50%吸引速度',
-        maxLevel: 3,
-        recipe: ['magnet', 'blackHole']
-    }
-];
-
-// ==================== 融合配方表 ====================
-// 快速查找融合配方
-export const FUSION_RECIPES = {};
-LEGENDARY_SKILLS.forEach(skill => {
-    const key1 = `${skill.recipe[0]}_${skill.recipe[1]}`;
-    const key2 = `${skill.recipe[1]}_${skill.recipe[0]}`;
-    FUSION_RECIPES[key1] = skill;
-    FUSION_RECIPES[key2] = skill;
-});
 
 // 稀有度权重（用于随机选择）
 const RARITY_WEIGHTS = {
@@ -515,60 +161,7 @@ export function generateSkillChoices(count = 3, playerSkills = {}, luckLevel = 0
  * @returns {Object|null}
  */
 export function getSkillById(skillId) {
-    // 先在普通技能中查找
-    const normalSkill = ALL_SKILLS.find(s => s.id === skillId);
-    if (normalSkill) return normalSkill;
-
-    // 再在传说技能中查找
-    const legendarySkill = LEGENDARY_SKILLS.find(s => s.id === skillId);
-    if (legendarySkill) return legendarySkill;
-
-    return null;
-}
-
-/**
- * 检查可用的融合选项
- * @param {Object} playerSkills 玩家当前技能
- * @returns {Array} 可融合的传说技能列表
- */
-export function checkFusionOptions(playerSkills) {
-    const fusionOptions = [];
-
-    LEGENDARY_SKILLS.forEach(legendarySkill => {
-        // 检查是否已经拥有该传说技能
-        if (playerSkills[legendarySkill.id]) {
-            // 如果已拥有但未满级，可以继续升级
-            if (playerSkills[legendarySkill.id] < legendarySkill.maxLevel) {
-                fusionOptions.push({
-                    ...legendarySkill,
-                    canFuse: false,  // 不是融合，是升级
-                    isUpgrade: true,
-                    currentLevel: playerSkills[legendarySkill.id]
-                });
-            }
-            return;
-        }
-
-        // 检查融合条件：两个原料技能都达到3级
-        const [skillA, skillB] = legendarySkill.recipe;
-        const levelA = playerSkills[skillA] || 0;
-        const levelB = playerSkills[skillB] || 0;
-
-        if (levelA >= 3 && levelB >= 3) {
-            fusionOptions.push({
-                ...legendarySkill,
-                canFuse: true,
-                isUpgrade: false,
-                currentLevel: 0,
-                ingredients: [
-                    { id: skillA, name: getSkillById(skillA)?.name || skillA },
-                    { id: skillB, name: getSkillById(skillB)?.name || skillB }
-                ]
-            });
-        }
-    });
-
-    return fusionOptions;
+    return ALL_SKILLS.find(s => s.id === skillId) || null;
 }
 
 /**

@@ -3,7 +3,7 @@
  * 肉鸽模式：无限生存，经验升级，三选一技能
  */
 import { GAME_EVENTS, GUNBEAN_EVENTS } from '../../../shared/Events.js';
-import { DEFAULT_WEAPON, ALL_SKILLS, LEGENDARY_SKILLS, generateSkillChoices, getSkillById, getExpForLevel, EXP_ORB_CONFIG, checkFusionOptions } from './GunBeanSkillData.js';
+import { DEFAULT_WEAPON, ALL_SKILLS, generateSkillChoices, getSkillById, getExpForLevel, EXP_ORB_CONFIG } from './GunBeanSkillData.js';
 
 // 敌人类型配置（8种小怪）
 const ENEMY_TYPES = {
@@ -84,7 +84,7 @@ const CONFIG = {
     KNOCKBACK_FORCE: 320,   // 子弹击退力度（4倍）
     FRICTION: 0.92,         // 摩擦力（降低，滑行更远）
     REVIVE_DISTANCE: 80,    // 复活距离
-    ENEMY_SPAWN_INTERVAL: 4000,  // 敌人生成间隔（毫秒）
+    ENEMY_SPAWN_INTERVAL: 1000,  // 敌人生成间隔（毫秒）
     ENEMY_SPEED: 60,        // 敌人基础移动速度
     ENEMY_HP: 2,            // 敌人基础生命值
     ENEMY_EXP: 15,          // 敌人基础掉落经验
@@ -104,7 +104,7 @@ const CONFIG = {
     EXP_ATTRACT_SPEED: EXP_ORB_CONFIG.ATTRACT_SPEED,
     // 难度递增
     DIFFICULTY_INTERVAL: 30000,  // 每30秒增加难度
-    MAX_ENEMIES: 15              // 最大敌人数量
+    MAX_ENEMIES: 40              // 最大敌人数量
 };
 
 // 船只出生点（单船模式：中心位置）
@@ -185,6 +185,7 @@ export class GunBeanHandler {
             bullets: new Map(),
             enemies: new Map(),
             expOrbs: new Map(),      // 经验球
+            items: new Map(),        // 道具（回血、磁铁等）
             blackHoles: new Map(),   // 黑洞（第四阶段技能）
             isRunning: false,
             isPaused: false,         // 暂停状态（升级选技能时）
@@ -192,6 +193,7 @@ export class GunBeanHandler {
             bulletIdCounter: 0,
             enemyIdCounter: 0,
             expOrbIdCounter: 0,
+            itemIdCounter: 0,        // 道具ID计数器
             blackHoleIdCounter: 0,   // 黑洞ID计数器
             gameTime: 0,             // 游戏时间（秒）
             difficultyLevel: 1,      // 难度等级
@@ -406,8 +408,8 @@ export class GunBeanHandler {
             return;
         }
 
-        const { skillId, isFusion } = data;
-        console.log(`[GunBeanHandler] 玩家 ${gamePlayer.name} 选择技能: skillId=${skillId}, isFusion=${isFusion}`);
+        const { skillId } = data;
+        console.log(`[GunBeanHandler] 玩家 ${gamePlayer.name} 选择技能: skillId=${skillId}`);
 
         const skill = getSkillById(skillId);
         if (!skill) {
@@ -415,70 +417,40 @@ export class GunBeanHandler {
             return;
         }
 
-        // ========== 融合技能处理 ==========
-        if (isFusion && skill.rarity === 'legendary' && skill.recipe) {
-            // 检查融合条件
-            const [skillA, skillB] = skill.recipe;
-            const levelA = gamePlayer.skills[skillA] || 0;
-            const levelB = gamePlayer.skills[skillB] || 0;
+        // ========== 普通技能升级 ==========
+        // 检查技能是否可以升级
+        const currentLevel = gamePlayer.skills[skillId] || 0;
+        if (currentLevel >= skill.maxLevel) return;
 
-            if (levelA < 3 || levelB < 3) {
-                console.log(`[GunBeanHandler] 融合条件不满足: ${skillA}=${levelA}, ${skillB}=${levelB}`);
-                return;
+        // 升级技能
+        gamePlayer.skills[skillId] = currentLevel + 1;
+
+        // 立即生效的技能
+        if (skill.immediate && skill.id === 'heal') {
+            const boat = game.boats.get(gamePlayer.boatId);
+            if (boat) {
+                boat.hp = Math.min(boat.hp + 3, boat.maxHp);
             }
-
-            // 移除原料技能
-            delete gamePlayer.skills[skillA];
-            delete gamePlayer.skills[skillB];
-
-            // 获得传说技能
-            gamePlayer.skills[skillId] = 1;
-
-            console.log(`[GunBeanHandler] 玩家 ${gamePlayer.name} 融合技能 ${skill.name}！消耗 ${skillA} 和 ${skillB}`);
-
-            // 通知融合成功
-            socket.emit(GUNBEAN_EVENTS.SKILL_FUSED, {
-                skillId,
-                skillName: skill.name,
-                consumedSkills: [skillA, skillB],
-                skills: gamePlayer.skills
-            });
-        } else {
-            // ========== 普通技能升级 ==========
-            // 检查技能是否可以升级
-            const currentLevel = gamePlayer.skills[skillId] || 0;
-            if (currentLevel >= skill.maxLevel) return;
-
-            // 升级技能
-            gamePlayer.skills[skillId] = currentLevel + 1;
-
-            // 立即生效的技能
-            if (skill.immediate && skill.id === 'heal') {
-                const boat = game.boats.get(gamePlayer.boatId);
-                if (boat) {
-                    boat.hp = Math.min(boat.hp + 3, boat.maxHp);
-                }
-            }
-
-            // 护盾技能增加护盾层数
-            if (skill.id === 'shield') {
-                const boat = game.boats.get(gamePlayer.boatId);
-                if (boat) {
-                    boat.shield = (boat.shield || 0) + 1;
-                }
-            }
-
-            // 生命护盾传说技能增加护盾
-            if (skill.id === 'lifeShield') {
-                const boat = game.boats.get(gamePlayer.boatId);
-                if (boat) {
-                    const shieldBonus = 5 + (gamePlayer.skills[skillId] - 1) * 3;
-                    boat.shield = (boat.shield || 0) + shieldBonus;
-                }
-            }
-
-            console.log(`[GunBeanHandler] 玩家 ${gamePlayer.name} 选择技能 ${skill.name} Lv.${gamePlayer.skills[skillId]}`);
         }
+
+        // 护盾技能增加护盾层数
+        if (skill.id === 'shield') {
+            const boat = game.boats.get(gamePlayer.boatId);
+            if (boat) {
+                boat.shield = (boat.shield || 0) + 1;
+            }
+        }
+
+        // 生命护盾传说技能增加护盾
+        if (skill.id === 'lifeShield') {
+            const boat = game.boats.get(gamePlayer.boatId);
+            if (boat) {
+                const shieldBonus = 5 + (gamePlayer.skills[skillId] - 1) * 3;
+                boat.shield = (boat.shield || 0) + shieldBonus;
+            }
+        }
+
+        console.log(`[GunBeanHandler] 玩家 ${gamePlayer.name} 选择技能 ${skill.name} Lv.${gamePlayer.skills[skillId]}`);
 
         // 通知技能选择结果
         socket.emit(GUNBEAN_EVENTS.SKILL_SELECTED, {
@@ -523,13 +495,7 @@ export class GunBeanHandler {
         const luckLevel = gamePlayer.skills['luck'] || 0;
         const choices = generateSkillChoices(3, gamePlayer.skills, luckLevel);
 
-        // 检查融合选项
-        const fusionOptions = checkFusionOptions(gamePlayer.skills);
-
         console.log(`[GunBeanHandler] 生成技能选项: ${choices.length}个`, choices.map(s => s.name));
-        if (fusionOptions.length > 0) {
-            console.log(`[GunBeanHandler] 可用融合选项: ${fusionOptions.length}个`, fusionOptions.map(s => s.name));
-        }
 
         // 发送升级通知和技能选项
         this.io.to(game.roomId).emit(GUNBEAN_EVENTS.LEVEL_UP, {
@@ -546,22 +512,7 @@ export class GunBeanHandler {
             description: s.description,
             effectPerLevel: s.effectPerLevel,
             currentLevel: gamePlayer.skills[s.id] || 0,
-            maxLevel: s.maxLevel,
-            isFusion: false
-        }));
-
-        // 添加融合选项
-        const fusionData = fusionOptions.filter(f => f.canFuse).map(s => ({
-            id: s.id,
-            name: s.name,
-            icon: s.icon,
-            rarity: s.rarity,
-            description: s.description,
-            effectPerLevel: s.effectPerLevel,
-            currentLevel: 0,
-            maxLevel: s.maxLevel,
-            isFusion: true,
-            ingredients: s.ingredients
+            maxLevel: s.maxLevel
         }));
 
         const socket = this.io.sockets.sockets.get(gamePlayer.id);
@@ -570,8 +521,7 @@ export class GunBeanHandler {
             socket.emit(GUNBEAN_EVENTS.SKILL_CHOICES, {
                 playerId: gamePlayer.id,
                 level: gamePlayer.level,
-                choices: choicesData,
-                fusionOptions: fusionData
+                choices: choicesData
             });
         } else {
             console.error(`[GunBeanHandler] 无法获取玩家 ${gamePlayer.name} 的socket，playerId: ${gamePlayer.id}`);
@@ -579,8 +529,7 @@ export class GunBeanHandler {
             this.io.to(game.roomId).emit(GUNBEAN_EVENTS.SKILL_CHOICES, {
                 playerId: gamePlayer.id,
                 level: gamePlayer.level,
-                choices: choicesData,
-                fusionOptions: fusionData
+                choices: choicesData
             });
         }
     }
@@ -623,6 +572,54 @@ export class GunBeanHandler {
     }
 
     /**
+     * 收集道具
+     */
+    collectItem(game, boat, item) {
+        // 通知道具被收集
+        this.io.to(game.roomId).emit(GUNBEAN_EVENTS.ITEM_COLLECTED, {
+            itemId: item.id,
+            boatId: boat.id,
+            type: item.type
+        });
+
+        if (item.type === 'health') {
+            // 回血道具：+2 HP
+            const healAmount = 2;
+            boat.hp = Math.min(boat.hp + healAmount, boat.maxHp);
+            console.log(`[GunBeanHandler] 回血道具: 船只 ${boat.id} 恢复 ${healAmount} HP`);
+
+        } else if (item.type === 'magnet') {
+            // 全屏磁铁：立即吸取全屏经验值
+            this.io.to(game.roomId).emit(GUNBEAN_EVENTS.MAGNET_PULSE, {
+                boatId: boat.id,
+                x: boat.x,
+                y: boat.y
+            });
+
+            // 立即吸取所有经验球
+            game.expOrbs.forEach((orb, orbId) => {
+                // 找一个存活玩家作为收集者
+                let collector = null;
+                for (const pid of boat.playerIds) {
+                    const p = game.players.get(pid);
+                    if (p && !p.isDead) {
+                        collector = p;
+                        break;
+                    }
+                }
+
+                if (collector) {
+                    this.collectExpOrb(game, collector, orb);
+                }
+            });
+            console.log(`[GunBeanHandler] 全屏磁铁: 船只 ${boat.id} 吸取所有经验球`);
+        }
+
+        // 同步状态
+        this.syncState(game.roomId);
+    }
+
+    /**
      * 生成经验球
      */
     spawnExpOrb(game, x, y, exp) {
@@ -638,6 +635,31 @@ export class GunBeanHandler {
         game.expOrbs.set(orbId, orb);
 
         this.io.to(game.roomId).emit(GUNBEAN_EVENTS.EXP_ORB_SPAWNED, orb);
+    }
+
+    /**
+     * 生成道具
+     */
+    spawnItem(game, x, y, type) {
+        // 边界检测（道具半径20，额外留10像素安全边距）
+        const itemRadius = 30;  // 20 + 10安全边距
+        const halfW = CONFIG.ARENA_WIDTH / 2 - itemRadius;
+        const halfH = CONFIG.ARENA_HEIGHT / 2 - itemRadius;
+        x = Math.max(-halfW, Math.min(halfW, x));
+        y = Math.max(-halfH, Math.min(halfH, y));
+
+        const itemId = `item_${game.itemIdCounter++}`;
+        const item = {
+            id: itemId,
+            x: x,
+            y: y,
+            type: type,              // 'health' | 'magnet'
+            createdAt: Date.now()
+        };
+
+        game.items.set(itemId, item);
+
+        this.io.to(game.roomId).emit(GUNBEAN_EVENTS.ITEM_SPAWNED, item);
     }
 
     /**
@@ -1043,6 +1065,37 @@ export class GunBeanHandler {
                     this.collectExpOrb(game, nearestPlayer, orb);
                 }
             }
+        });
+
+        // ========== 道具拾取 ==========
+        game.items.forEach((item, itemId) => {
+            // 道具存活时间60秒
+            if (now - item.createdAt > 60000) {
+                game.items.delete(itemId);
+                return;
+            }
+
+            // 边界限制（道具半径20 + 10安全边距）
+            const itemRadius = 30;
+            const halfW = CONFIG.ARENA_WIDTH / 2 - itemRadius;
+            const halfH = CONFIG.ARENA_HEIGHT / 2 - itemRadius;
+            item.x = Math.max(-halfW, Math.min(halfW, item.x));
+            item.y = Math.max(-halfH, Math.min(halfH, item.y));
+
+            // 检查是否有船只接触道具
+            game.boats.forEach(boat => {
+                if (boat.hp <= 0) return;
+
+                const dx = boat.x - item.x;
+                const dy = boat.y - item.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                // 拾取范围（船只半径 + 道具半径）
+                if (dist < CONFIG.BOAT_RADIUS + 20) {
+                    this.collectItem(game, boat, item);
+                    game.items.delete(itemId);
+                }
+            });
         });
 
         // ========== 再生技能效果 ==========
@@ -1867,6 +1920,12 @@ export class GunBeanHandler {
     killEnemy(game, enemy, killerId) {
         game.enemies.delete(enemy.id);
 
+        // 确保敌人位置在边界内（用于道具和经验球生成）
+        const halfW = CONFIG.ARENA_WIDTH / 2 - 30;  // 留出安全边距
+        const halfH = CONFIG.ARENA_HEIGHT / 2 - 30;
+        enemy.x = Math.max(-halfW, Math.min(halfW, enemy.x));
+        enemy.y = Math.max(-halfH, Math.min(halfH, enemy.y));
+
         // 生成经验球（使用敌人的经验倍率，难度翻倍：每级增加4经验而不是2）
         const expMult = enemy.expMultiplier || 1.0;
         const expAmount = Math.ceil((CONFIG.ENEMY_EXP + Math.floor(game.difficultyLevel * 4)) * expMult);
@@ -2199,7 +2258,7 @@ export class GunBeanHandler {
         if (!game || !game.isRunning || game.isPaused) return;
 
         // 根据难度限制敌人数量（难度翻倍：每个难度等级增加2个敌人而不是1个）
-        const maxEnemies = Math.min(CONFIG.MAX_ENEMIES, 5 + game.difficultyLevel * 2);
+        const maxEnemies = Math.min(CONFIG.MAX_ENEMIES, 10 + game.difficultyLevel * 2);
         if (game.enemies.size >= maxEnemies) return;
 
         const halfW = CONFIG.ARENA_WIDTH / 2 - 30;
