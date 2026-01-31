@@ -582,7 +582,7 @@ export class BallGame {
         // 更新眩晕特效
         this.scene.updateStunEffects(deltaTime);
 
-        // 更新摄像机跟随本地玩家
+        // 更新摄像机跟随本地玩家（GTA 风格）
         const localPlayer = this.players.get(this.localPlayerId);
         if (localPlayer) {
             this.scene.updateCamera(localPlayer.x, localPlayer.z);

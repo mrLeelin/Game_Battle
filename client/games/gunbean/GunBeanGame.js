@@ -12,7 +12,7 @@ import { GunBeanSkillPicker, GunBeanPauseIndicator } from './GunBeanSkillPicker.
 // 游戏配置
 const CONFIG = {
     BOAT_MAX_HP: 10,
-    BULLET_SPEED: 400,
+    BULLET_SPEED: 800,      // 子弹速度翻倍，打击感更强
     REVIVE_DISTANCE: 80
 };
 
@@ -44,6 +44,11 @@ export class GunBeanGame {
         this.kills = 0;
         this.isDead = false;
 
+        // 弹药系统
+        this.ammo = 5;
+        this.maxAmmo = 5;
+        this.isReloading = false;
+
         // 肉鸽系统
         this.level = 1;
         this.exp = 0;
@@ -61,7 +66,7 @@ export class GunBeanGame {
      * 初始化游戏
      */
     async init() {
-        console.log('[GunBeanGame] 初始化四人船版本...');
+        console.log('[GunBeanGame] 初始化单船共享血量版本...');
 
         this.bindNetworkEvents();
 
@@ -151,6 +156,11 @@ export class GunBeanGame {
             this.handleBoatDestroyed(data);
         });
 
+        // 船只受伤事件（敌人碰撞，触发震屏）
+        network.on(GUNBEAN_EVENTS.BOAT_DAMAGED, (data) => {
+            this.handleBoatDamaged(data);
+        });
+
         // ========== 肉鸽系统事件 ==========
 
         // 经验球生成
@@ -208,6 +218,31 @@ export class GunBeanGame {
             this.isPaused = false;
             this.pauseIndicator.hide();
         });
+
+        // ========== 弹药系统事件 ==========
+
+        // 弹药更新
+        network.on(GUNBEAN_EVENTS.AMMO_UPDATE, (data) => {
+            this.ammo = data.ammo;
+            this.maxAmmo = data.maxAmmo;
+            this.isReloading = data.isReloading || false;
+            this.ui.updateAmmo(this.ammo, this.maxAmmo);
+        });
+
+        // 开始换弹
+        network.on(GUNBEAN_EVENTS.RELOAD_START, (data) => {
+            this.isReloading = true;
+            this.ui.showReloading(data.reloadTime);
+        });
+
+        // 换弹完成
+        network.on(GUNBEAN_EVENTS.RELOAD_COMPLETE, (data) => {
+            this.ammo = data.ammo;
+            this.maxAmmo = data.maxAmmo;
+            this.isReloading = false;
+            this.ui.updateAmmo(this.ammo, this.maxAmmo);
+            this.ui.hideReloading();
+        });
     }
 
     /**
@@ -252,7 +287,13 @@ export class GunBeanGame {
                 this.ui.updateLevel(this.level, this.exp, this.expToNext);
                 this.ui.updateSkills(this.skills);
 
-                // 使用船只HP
+                // 初始化弹药
+                this.ammo = p.ammo || 5;
+                this.maxAmmo = p.maxAmmo || 5;
+                this.isReloading = false;
+                this.ui.updateAmmo(this.ammo, this.maxAmmo);
+
+                // 使用船只HP（团队共享血量）
                 if (this.localBoat) {
                     this.boatHp = this.localBoat.hp || CONFIG.BOAT_MAX_HP;
                     this.boatMaxHp = this.localBoat.maxHp || CONFIG.BOAT_MAX_HP;
@@ -412,6 +453,8 @@ export class GunBeanGame {
         this.scene.removeBullet(data.bulletId);
 
         if (data.hitType === 'enemy') {
+            // 敌人受击闪白效果
+            this.scene.flashEntity('enemy', data.enemyId, 80);
             this.ui.showMessage('命中！', 'success');
         } else if (data.hitType === 'boat') {
             // 更新被击中船只的HP
@@ -435,6 +478,16 @@ export class GunBeanGame {
                 this.boatMaxHp = data.boatMaxHp;
                 this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
                 this.ui.showMessage('船被击中！', 'warning');
+
+                // 船只受击：闪白 + 震屏
+                this.scene.flashEntity('boat', data.hitBoatId, 150);
+                this.scene.startScreenShake(12, 250);
+
+                // 创建受击粒子效果
+                const boat = this.scene.boats.get(data.hitBoatId);
+                if (boat) {
+                    this.scene.createHitParticles(boat.x, boat.y);
+                }
             }
         }
     }
@@ -515,6 +568,9 @@ export class GunBeanGame {
     handleEnemyDied(data) {
         this.scene.removeEnemy(data.enemyId);
         this.enemies.delete(data.enemyId);
+
+        // 敌人死亡震屏效果
+        this.scene.startScreenShake(8, 150);
 
         if (data.killerId === this.localPlayerId) {
             this.ui.showMessage('+1 击杀！', 'success');
@@ -628,6 +684,8 @@ export class GunBeanGame {
         const sceneBoat = this.scene.boats.get(data.boatId);
         if (sceneBoat) {
             sceneBoat.hp = 0;
+            // 船只摧毁时创建大型爆炸效果
+            this.scene.createDeathExplosion(sceneBoat.x, sceneBoat.y);
         }
 
         // 如果是本地玩家的船
@@ -636,6 +694,45 @@ export class GunBeanGame {
             this.boatHp = 0;
             this.ui.updateBoatHealth(0, this.boatMaxHp);
             this.ui.showMessage('船被摧毁了！', 'error');
+
+            // 强烈震屏效果
+            this.scene.startScreenShake(25, 500);
+        }
+    }
+
+    /**
+     * 处理船只受伤（敌人碰撞）
+     */
+    handleBoatDamaged(data) {
+        // 更新船只血量
+        const boat = this.boats.get(data.boatId);
+        if (boat) {
+            boat.hp = data.hp;
+            boat.maxHp = data.maxHp;
+        }
+
+        const sceneBoat = this.scene.boats.get(data.boatId);
+        if (sceneBoat) {
+            sceneBoat.hp = data.hp;
+            sceneBoat.maxHp = data.maxHp;
+        }
+
+        // 检查是否是自己的船
+        const localPlayer = this.players.get(this.localPlayerId);
+        if (localPlayer && data.boatId === localPlayer.boatId) {
+            this.boatHp = data.hp;
+            this.boatMaxHp = data.maxHp;
+            this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
+            this.ui.showMessage('敌人撞击！', 'warning');
+
+            // 船只受击效果：闪白 + 震屏 + 粒子
+            this.scene.flashEntity('boat', data.boatId, 150);
+            this.scene.startScreenShake(15, 300);
+
+            // 创建受击粒子
+            if (sceneBoat) {
+                this.scene.createHitParticles(sceneBoat.x, sceneBoat.y);
+            }
         }
     }
 
@@ -708,8 +805,15 @@ export class GunBeanGame {
             return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         }
 
-        // 计算玩家在船上的座位偏移（4人一排：-45, -15, 15, 45）
-        const seatOffsets = [-45, -15, 15, 45];
+        // 动态座位偏移（根据玩家数量）
+        const playerCount = this.players.size;
+        const getSeatOffsets = (count) => {
+            if (count <= 1) return [0];
+            if (count === 2) return [-20, 20];
+            if (count === 3) return [-30, 0, 30];
+            return [-45, -15, 15, 45];
+        };
+        const seatOffsets = getSeatOffsets(playerCount);
         const seatOffset = seatOffsets[localPlayer.seatIndex] || 0;
         const playerGameX = boat.x + seatOffset;
         const playerGameY = boat.y;
@@ -724,10 +828,33 @@ export class GunBeanGame {
     shoot(dirX, dirY) {
         if (!this.isRunning || this.isDead) return;
 
+        // 正在换弹时不能射击
+        if (this.isReloading) {
+            this.ui.showMessage('换弹中...', 'warning');
+            return;
+        }
+
+        // 没有弹药时提示
+        if (this.ammo <= 0) {
+            this.ui.showMessage('弹药用尽！', 'warning');
+            return;
+        }
+
         network.emit(GUNBEAN_EVENTS.SHOOT, {
             dirX,
             dirY
         });
+    }
+
+    /**
+     * 手动换弹
+     */
+    reload() {
+        if (!this.isRunning || this.isDead) return;
+        if (this.isReloading) return;
+        if (this.ammo >= this.maxAmmo) return;
+
+        network.emit(GUNBEAN_EVENTS.RELOAD);
     }
 
     /**
@@ -800,6 +927,7 @@ export class GunBeanGame {
         network.off(GUNBEAN_EVENTS.ENEMY_UPDATE);
         network.off(GUNBEAN_EVENTS.GAME_RESULT);
         network.off(GUNBEAN_EVENTS.BOAT_DESTROYED);
+        network.off(GUNBEAN_EVENTS.BOAT_DAMAGED);
 
         // 清理肉鸽系统事件
         network.off(GUNBEAN_EVENTS.EXP_ORB_SPAWNED);
@@ -810,6 +938,11 @@ export class GunBeanGame {
         network.off(GUNBEAN_EVENTS.SKILL_SELECTED);
         network.off(GUNBEAN_EVENTS.GAME_PAUSE);
         network.off(GUNBEAN_EVENTS.GAME_RESUME);
+
+        // 清理弹药系统事件
+        network.off(GUNBEAN_EVENTS.AMMO_UPDATE);
+        network.off(GUNBEAN_EVENTS.RELOAD_START);
+        network.off(GUNBEAN_EVENTS.RELOAD_COMPLETE);
 
         this.scene?.destroy();
         this.ui?.destroy();

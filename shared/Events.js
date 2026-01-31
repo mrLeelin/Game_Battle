@@ -120,6 +120,7 @@ export const GUNBEAN_EVENTS = {
     REVIVE: 'gunbean:revive',               // 复活队友
     PLAYER_ROTATE: 'gunbean:playerRotate',  // 玩家转向（瞄准方向）
     SKILL_SELECT: 'gunbean:skillSelect',    // 选择技能（升级时三选一）
+    RELOAD: 'gunbean:reload',               // 手动换弹
 
     // 服务端 -> 客户端
     PLAYER_UPDATE: 'gunbean:playerUpdate',  // 玩家状态更新（位置、速度）
@@ -132,6 +133,12 @@ export const GUNBEAN_EVENTS = {
     ENEMY_UPDATE: 'gunbean:enemyUpdate',    // 敌人状态更新
     GAME_RESULT: 'gunbean:result',          // 游戏结果
     BOAT_DESTROYED: 'gunbean:boatDestroyed',// 船只被摧毁
+    BOAT_DAMAGED: 'gunbean:boatDamaged',    // 船只受伤（敌人碰撞）
+
+    // 弹药系统事件
+    RELOAD_START: 'gunbean:reloadStart',       // 开始换弹
+    RELOAD_COMPLETE: 'gunbean:reloadComplete', // 换弹完成
+    AMMO_UPDATE: 'gunbean:ammoUpdate',         // 弹药更新
 
     // 经验系统事件
     EXP_ORB_SPAWNED: 'gunbean:expOrbSpawned',   // 经验球生成

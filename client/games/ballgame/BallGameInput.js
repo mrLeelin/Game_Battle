@@ -1,7 +1,6 @@
 /**
  * 抢球大战 - 输入控制
- * 支持键盘和触摸屏
- * 新增：鼠标朝向、左键攻击
+ * GTA 风格：鼠标控制相机旋转，WASD 相对相机移动，角色自动转向
  */
 import { FIELD } from './BallGameScene.js';
 
@@ -22,14 +21,11 @@ export class BallGameInput {
         this.playerZ = 0;
         this.moveSpeed = 0.15;
 
-        // 鼠标位置（世界坐标）
-        this.mouseWorldX = 0;
-        this.mouseWorldZ = 0;
-        this.mouseClientX = 0;
-        this.mouseClientY = 0;
-
-        // 玩家朝向（弧度）
+        // 玩家朝向（弧度）- 由移动方向自动决定
         this.playerRotation = 0;
+
+        // 鼠标灵敏度
+        this.mouseSensitivity = 0.003;
 
         // 触摸控制
         this.joystick = null;
@@ -58,6 +54,9 @@ export class BallGameInput {
         document.addEventListener('mousemove', this.onMouseMove);
         document.addEventListener('mousedown', this.onMouseDown);
 
+        // 禁用右键菜单
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
         // 检测移动端
         if ('ontouchstart' in window) {
             this.createMobileControls();
@@ -76,6 +75,7 @@ export class BallGameInput {
                     <div class="bg-joystick-thumb"></div>
                 </div>
             </div>
+            <div class="bg-camera-zone" id="camera-zone"></div>
             <div class="bg-action-zone">
                 <button class="bg-action-btn bg-attack-btn" id="attack-btn">攻击</button>
                 <button class="bg-action-btn bg-jump-btn" id="jump-btn">跳</button>
@@ -123,6 +123,15 @@ export class BallGameInput {
                 background: rgba(0, 242, 255, 0.8);
                 border-radius: 50%;
                 transition: transform 0.05s;
+            }
+
+            .bg-camera-zone {
+                position: absolute;
+                right: 150px;
+                bottom: 0;
+                width: calc(100% - 300px);
+                height: 100%;
+                pointer-events: auto;
             }
 
             .bg-action-zone {
@@ -178,6 +187,37 @@ export class BallGameInput {
         joystickZone.addEventListener('touchmove', this.onTouchMove, { passive: false });
         joystickZone.addEventListener('touchend', this.onTouchEnd);
 
+        // 相机区域触摸（用于旋转相机）
+        const cameraZone = document.getElementById('camera-zone');
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        cameraZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+
+        cameraZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                const deltaX = e.touches[0].clientX - lastTouchX;
+                const deltaY = e.touches[0].clientY - lastTouchY;
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+
+                // 旋转相机
+                if (this.game.scene) {
+                    this.game.scene.rotateCamera(
+                        deltaX * this.mouseSensitivity * 2,
+                        deltaY * this.mouseSensitivity * 2
+                    );
+                }
+            }
+        }, { passive: false });
+
         // 动作按钮
         const actionBtn = document.getElementById('action-btn');
         actionBtn.addEventListener('touchstart', (e) => {
@@ -201,28 +241,20 @@ export class BallGameInput {
     }
 
     /**
-     * 鼠标移动 - 更新玩家朝向
+     * 鼠标移动 - GTA 风格：控制相机旋转
      */
     onMouseMove(e) {
-        this.mouseClientX = e.clientX;
-        this.mouseClientY = e.clientY;
+        if (!this.game.scene) return;
 
-        // 获取鼠标在3D世界中的位置
-        if (this.game.scene) {
-            const worldPos = this.game.scene.getMouseWorldPosition(e.clientX, e.clientY);
-            this.mouseWorldX = worldPos.x;
-            this.mouseWorldZ = worldPos.z;
+        // 获取鼠标移动增量
+        const deltaX = e.movementX || 0;
+        const deltaY = e.movementY || 0;
 
-            // 更新玩家朝向
-            this.playerRotation = this.game.scene.facePlayerToMouse(
-                this.game.localPlayerId,
-                this.mouseWorldX,
-                this.mouseWorldZ
-            );
-
-            // 发送朝向到服务端
-            this.game.sendRotation(this.playerRotation);
-        }
+        // 旋转相机
+        this.game.scene.rotateCamera(
+            deltaX * this.mouseSensitivity,
+            deltaY * this.mouseSensitivity
+        );
     }
 
     /**
@@ -355,7 +387,6 @@ export class BallGameInput {
         this.playerZ += pushZ;
 
         // 边界限制
-        const FIELD = { WIDTH: 30, HEIGHT: 30 };
         const halfWidth = FIELD.WIDTH / 2 - 0.5;
         const halfHeight = FIELD.HEIGHT / 2 - 0.5;
         this.playerX = Math.max(-halfWidth, Math.min(halfWidth, this.playerX));
@@ -366,32 +397,48 @@ export class BallGameInput {
     }
 
     /**
-     * 更新（每帧调用）
+     * 更新（每帧调用）- GTA 风格移动
      */
     update() {
         // 如果玩家眩晕，不处理移动
         if (this.game.isStunned) return;
 
-        let dx = 0;
-        let dz = 0;
+        let inputX = 0;
+        let inputZ = 0;
 
-        // 键盘输入
-        if (this.keys.w) dz -= 1;
-        if (this.keys.s) dz += 1;
-        if (this.keys.a) dx -= 1;
-        if (this.keys.d) dx += 1;
+        // 键盘输入（相对于屏幕的原始输入）
+        if (this.keys.w) inputZ -= 1;  // W = 向前（相机方向）
+        if (this.keys.s) inputZ += 1;  // S = 向后
+        if (this.keys.a) inputX -= 1;  // A = 向左
+        if (this.keys.d) inputX += 1;  // D = 向右
 
         // 摇杆输入
         if (this.joystickActive) {
-            dx = this.joystickDelta.x;
-            dz = this.joystickDelta.y;
+            inputX = this.joystickDelta.x;
+            inputZ = this.joystickDelta.y;
         }
 
-        // 归一化移动向量
-        const len = Math.sqrt(dx * dx + dz * dz);
-        if (len > 0) {
-            dx = (dx / len) * this.moveSpeed;
-            dz = (dz / len) * this.moveSpeed;
+        // 归一化输入向量
+        const inputLen = Math.sqrt(inputX * inputX + inputZ * inputZ);
+        if (inputLen > 0) {
+            inputX /= inputLen;
+            inputZ /= inputLen;
+
+            // 获取相机方向
+            const forward = this.game.scene?.getCameraForward() || { x: 0, z: 1 };
+            const right = this.game.scene?.getCameraRight() || { x: 1, z: 0 };
+
+            // 计算世界空间移动方向（相对于相机）
+            // W (inputZ < 0) = 相机前方
+            // S (inputZ > 0) = 相机后方
+            // A (inputX < 0) = 相机左方
+            // D (inputX > 0) = 相机右方
+            const worldDirX = forward.x * (-inputZ) + right.x * inputX;
+            const worldDirZ = forward.z * (-inputZ) + right.z * inputX;
+
+            // 应用移动速度
+            const dx = worldDirX * this.moveSpeed;
+            const dz = worldDirZ * this.moveSpeed;
 
             // 预测新位置
             let newX = this.playerX + dx;
@@ -424,19 +471,16 @@ export class BallGameInput {
 
             // 发送移动
             this.game.sendMove(this.playerX, this.playerZ);
-        }
 
-        // 持续更新鼠标朝向（即使不移动）
-        if (this.game.scene && this.mouseClientX && this.mouseClientY) {
-            const worldPos = this.game.scene.getMouseWorldPosition(this.mouseClientX, this.mouseClientY);
-            this.mouseWorldX = worldPos.x;
-            this.mouseWorldZ = worldPos.z;
+            // === GTA 风格：角色自动转向移动方向 ===
+            const moveRotation = Math.atan2(worldDirX, worldDirZ);
+            this.playerRotation = moveRotation;
 
-            this.playerRotation = this.game.scene.facePlayerToMouse(
-                this.game.localPlayerId,
-                this.mouseWorldX,
-                this.mouseWorldZ
-            );
+            // 更新角色朝向
+            this.game.scene?.setPlayerRotation(this.game.localPlayerId, moveRotation);
+
+            // 发送朝向到服务端
+            this.game.sendRotation(moveRotation);
         }
     }
 

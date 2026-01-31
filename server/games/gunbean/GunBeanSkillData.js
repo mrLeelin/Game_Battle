@@ -89,8 +89,17 @@ export const ALL_SKILLS = [
         name: '快装',
         icon: '⚡',
         rarity: 'common',
-        description: '提升射速',
-        effectPerLevel: '+10%射速',
+        description: '减少换弹时间',
+        effectPerLevel: '-12%换弹时间',
+        maxLevel: 5
+    },
+    {
+        id: 'ammoCapacity',
+        name: '扩容',
+        icon: '📦',
+        rarity: 'common',
+        description: '增加弹匣容量',
+        effectPerLevel: '+2发子弹',
         maxLevel: 5
     },
     {

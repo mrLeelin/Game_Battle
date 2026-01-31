@@ -62,40 +62,102 @@ export class BallGameScene {
     }
 
     /**
-     * 设置摄像机 - 70度俯视
+     * 设置摄像机 - GTA 风格第三人称
      */
     setupCamera() {
         const aspect = window.innerWidth / window.innerHeight;
         this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
 
-        // 摄像机参数（用于跟随）
-        this.cameraDistance = 12;  // 更近的距离
-        this.cameraAngle = 60 * Math.PI / 180; // 60度俯视角
+        // GTA 风格相机参数
+        this.cameraDistance = 5;       // 相机与玩家的距离
+        this.cameraYaw = 0;            // 水平旋转角度（鼠标左右控制）
+        this.cameraPitch = 0.4;        // 垂直俯仰角度（鼠标上下控制）
+        this.cameraPitchMin = 0.1;     // 最小俯仰（防止看到地下）
+        this.cameraPitchMax = 1.2;     // 最大俯仰（防止翻转）
+        this.cameraLookAtHeight = 1.0; // 看向的高度（玩家腰部）
+        this.cameraLerpSpeed = 0.15;   // 平滑跟随速度
+
+        // 当前相机状态（用于平滑插值）
+        this.currentCameraPos = new THREE.Vector3(0, 3, 5);
+        this.currentLookAt = new THREE.Vector3(0, 1, 0);
 
         // 初始位置
-        this.camera.position.set(0, this.cameraDistance * Math.sin(this.cameraAngle), this.cameraDistance * Math.cos(this.cameraAngle));
-        this.camera.lookAt(0, 0, 0);
+        this.camera.position.copy(this.currentCameraPos);
+        this.camera.lookAt(this.currentLookAt);
     }
 
     /**
-     * 更新摄像机跟随目标
+     * 旋转相机（由鼠标输入调用）
+     * @param {number} deltaYaw - 水平旋转增量
+     * @param {number} deltaPitch - 垂直旋转增量
+     */
+    rotateCamera(deltaYaw, deltaPitch) {
+        // 注意：yaw 取反，使鼠标向右时视角向右
+        this.cameraYaw -= deltaYaw;
+        this.cameraPitch += deltaPitch;
+
+        // 限制俯仰角度
+        this.cameraPitch = Math.max(this.cameraPitchMin, Math.min(this.cameraPitchMax, this.cameraPitch));
+    }
+
+    /**
+     * 获取相机的前方向（用于 WASD 移动）
+     * @returns {{x: number, z: number}} 归一化的前方向向量
+     */
+    getCameraForward() {
+        return {
+            x: Math.sin(this.cameraYaw),
+            z: Math.cos(this.cameraYaw)
+        };
+    }
+
+    /**
+     * 获取相机的右方向（用于 WASD 移动）
+     * @returns {{x: number, z: number}} 归一化的右方向向量
+     */
+    getCameraRight() {
+        // 右方向 = 前方向顺时针旋转90度
+        return {
+            x: -Math.cos(this.cameraYaw),
+            z: Math.sin(this.cameraYaw)
+        };
+    }
+
+    /**
+     * 更新摄像机 - GTA 风格环绕跟随
+     * @param {number} targetX - 玩家X位置
+     * @param {number} targetZ - 玩家Z位置
      */
     updateCamera(targetX, targetZ) {
         if (!this.camera) return;
 
-        // 计算摄像机目标位置
-        const offsetY = this.cameraDistance * Math.sin(this.cameraAngle);
-        const offsetZ = this.cameraDistance * Math.cos(this.cameraAngle);
+        // 计算相机位置（球面坐标）
+        // 相机在玩家后方，根据 yaw 和 pitch 计算偏移
+        const horizontalDist = this.cameraDistance * Math.cos(this.cameraPitch);
+        const verticalDist = this.cameraDistance * Math.sin(this.cameraPitch);
 
-        // 平滑跟随（只移动位置，不旋转）
-        const lerpSpeed = 0.1;
-        const targetCamX = targetX;
-        const targetCamY = offsetY;
-        const targetCamZ = targetZ + offsetZ;
+        const targetCamX = targetX - horizontalDist * Math.sin(this.cameraYaw);
+        const targetCamY = verticalDist + 1.0; // 加上基础高度
+        const targetCamZ = targetZ - horizontalDist * Math.cos(this.cameraYaw);
 
-        this.camera.position.x += (targetCamX - this.camera.position.x) * lerpSpeed;
-        this.camera.position.y += (targetCamY - this.camera.position.y) * lerpSpeed;
-        this.camera.position.z += (targetCamZ - this.camera.position.z) * lerpSpeed;
+        // 计算看向位置（玩家身体）
+        const targetLookX = targetX;
+        const targetLookY = this.cameraLookAtHeight;
+        const targetLookZ = targetZ;
+
+        // 平滑插值 - 相机位置
+        this.currentCameraPos.x += (targetCamX - this.currentCameraPos.x) * this.cameraLerpSpeed;
+        this.currentCameraPos.y += (targetCamY - this.currentCameraPos.y) * this.cameraLerpSpeed;
+        this.currentCameraPos.z += (targetCamZ - this.currentCameraPos.z) * this.cameraLerpSpeed;
+
+        // 平滑插值 - 看向位置
+        this.currentLookAt.x += (targetLookX - this.currentLookAt.x) * this.cameraLerpSpeed;
+        this.currentLookAt.y += (targetLookY - this.currentLookAt.y) * this.cameraLerpSpeed;
+        this.currentLookAt.z += (targetLookZ - this.currentLookAt.z) * this.cameraLerpSpeed;
+
+        // 应用到相机
+        this.camera.position.copy(this.currentCameraPos);
+        this.camera.lookAt(this.currentLookAt);
     }
 
     /**

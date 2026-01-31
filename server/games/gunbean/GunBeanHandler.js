@@ -5,20 +5,49 @@
 import { GAME_EVENTS, GUNBEAN_EVENTS } from '../../../shared/Events.js';
 import { DEFAULT_WEAPON, ALL_SKILLS, generateSkillChoices, getSkillById, getExpForLevel, EXP_ORB_CONFIG } from './GunBeanSkillData.js';
 
+// 敌人类型配置（3种小怪）
+const ENEMY_TYPES = {
+    // 类型1：普通小怪
+    1: {
+        type: 1,
+        hpMultiplier: 1.0,      // 血量倍率
+        speedMultiplier: 1.0,   // 速度倍率
+        expMultiplier: 1.0,     // 经验倍率
+        size: 30                // 尺寸
+    },
+    // 类型2：快速小怪（血少、速度快、经验少）
+    2: {
+        type: 2,
+        hpMultiplier: 0.6,
+        speedMultiplier: 1.5,
+        expMultiplier: 0.8,
+        size: 25
+    },
+    // 类型3：重型小怪（血多、速度慢、经验多）
+    3: {
+        type: 3,
+        hpMultiplier: 2.0,
+        speedMultiplier: 0.6,
+        expMultiplier: 1.5,
+        size: 40
+    }
+};
+
 // 游戏配置
 const CONFIG = {
     ARENA_WIDTH: 1200,      // 场地宽度
     ARENA_HEIGHT: 800,      // 场地高度
-    BOAT_MAX_HP: 10,        // 船只最大生命值
-    BULLET_SPEED: 400,      // 子弹速度（像素/秒）
+    TEAM_MAX_HP: 20,        // 团队共享最大生命值（单船模式）
+    BULLET_SPEED: 800,      // 子弹速度（像素/秒）- 翻倍提升打击感
     BULLET_LIFETIME: 2000,  // 子弹存活时间（毫秒）
     RECOIL_FORCE: 120,      // 后坐力
+    KNOCKBACK_FORCE: 80,    // 子弹击退力度（新增）
     FRICTION: 0.97,         // 摩擦力
     REVIVE_DISTANCE: 80,    // 复活距离
     ENEMY_SPAWN_INTERVAL: 4000,  // 敌人生成间隔（毫秒）
-    ENEMY_SPEED: 60,        // 敌人移动速度
-    ENEMY_HP: 3,            // 敌人生命值
-    ENEMY_EXP: 15,          // 敌人掉落经验
+    ENEMY_SPEED: 60,        // 敌人基础移动速度
+    ENEMY_HP: 3,            // 敌人基础生命值
+    ENEMY_EXP: 15,          // 敌人基础掉落经验
     BOAT_RADIUS: 50,        // 船碰撞半径
     BULLET_RADIUS: 6,       // 子弹碰撞半径
     ENEMY_RADIUS: 20,       // 敌人碰撞半径
@@ -26,6 +55,9 @@ const CONFIG = {
     BOUNCE_DAMPING: 0.7,    // 边界反弹衰减系数
     BULLET_DAMAGE: 1,       // 子弹对船只的伤害
     ENEMY_DAMAGE: 2,        // 敌人对船只的伤害
+    // 弹药系统
+    MAX_AMMO: 5,            // 默认弹匣容量
+    RELOAD_TIME: 1500,      // 换弹时间（毫秒）
     // 经验系统
     EXP_ORB_RADIUS: EXP_ORB_CONFIG.RADIUS,
     EXP_ATTRACT_RANGE: EXP_ORB_CONFIG.ATTRACT_RANGE,
@@ -35,13 +67,10 @@ const CONFIG = {
     MAX_ENEMIES: 15              // 最大敌人数量
 };
 
-// 船只出生点（左右两侧）
+// 船只出生点（单船模式：中心位置）
 function getBoatSpawnPoint(boatIndex) {
-    const positions = [
-        { x: -200, y: 0 },
-        { x: 200, y: 0 }
-    ];
-    return positions[boatIndex % positions.length];
+    // 单船模式，所有玩家在同一艘船，船在中心
+    return { x: 0, y: 0 };
 }
 
 export class GunBeanHandler {
@@ -74,6 +103,11 @@ export class GunBeanHandler {
         // 技能选择
         socket.on(GUNBEAN_EVENTS.SKILL_SELECT, (data) => {
             this.handleSkillSelect(socket, data);
+        });
+
+        // 手动换弹
+        socket.on(GUNBEAN_EVENTS.RELOAD, () => {
+            this.handleReload(socket);
         });
     }
 
@@ -123,38 +157,33 @@ export class GunBeanHandler {
             }
         };
 
-        // 计算船只数量
-        const boatCount = Math.ceil(players.length / CONFIG.PLAYERS_PER_BOAT);
+        // 单船模式：只创建1艘船，所有玩家在同一艘船上
+        const spawn = getBoatSpawnPoint(0);
+        gameState.boats.set(0, {
+            id: 0,
+            x: spawn.x,
+            y: spawn.y,
+            vx: 0,
+            vy: 0,
+            hp: CONFIG.TEAM_MAX_HP,
+            maxHp: CONFIG.TEAM_MAX_HP,
+            playerIds: [],
+            shield: 0
+        });
 
-        // 创建船只
-        for (let i = 0; i < boatCount; i++) {
-            const spawn = getBoatSpawnPoint(i);
-            gameState.boats.set(i, {
-                id: i,
-                x: spawn.x,
-                y: spawn.y,
-                vx: 0,
-                vy: 0,
-                hp: CONFIG.BOAT_MAX_HP,
-                maxHp: CONFIG.BOAT_MAX_HP,
-                playerIds: [],
-                shield: 0
-            });
-        }
+        const boat = gameState.boats.get(0);
 
-        // 分配玩家到船只
+        // 所有玩家分配到同一艘船
         players.forEach((playerId, index) => {
-            const boatIndex = Math.floor(index / CONFIG.PLAYERS_PER_BOAT);
-            const boat = gameState.boats.get(boatIndex);
             const playerInfo = this.playerManager.getPlayer(playerId);
             const playerName = playerInfo?.name || `玩家${playerId.slice(-4)}`;
-            const seatIndex = index % CONFIG.PLAYERS_PER_BOAT;
+            const seatIndex = index; // 座位按顺序分配
 
             const player = {
                 id: playerId,
                 name: playerName,
                 colorIndex: index,
-                boatId: boatIndex,
+                boatId: 0,  // 都是0号船
                 seatIndex: seatIndex,
                 isDead: false,
                 kills: 0,
@@ -167,7 +196,12 @@ export class GunBeanHandler {
                 // 技能
                 skills: {},
                 // 统一武器
-                weapon: { ...DEFAULT_WEAPON }
+                weapon: { ...DEFAULT_WEAPON },
+                // 弹药系统
+                ammo: CONFIG.MAX_AMMO,
+                maxAmmo: CONFIG.MAX_AMMO,
+                isReloading: false,
+                reloadEndTime: 0
             };
 
             gameState.players.set(playerId, player);
@@ -635,7 +669,9 @@ export class GunBeanHandler {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist > 30) {
-                    const speed = CONFIG.ENEMY_SPEED * speedMult * (1 + game.difficultyLevel * 0.05);
+                    // 使用敌人自身的速度倍率
+                    const enemySpeedMult = enemy.speedMultiplier || 1.0;
+                    const speed = CONFIG.ENEMY_SPEED * speedMult * enemySpeedMult * (1 + game.difficultyLevel * 0.05);
                     enemy.x += (dx / dist) * speed * deltaTime;
                     enemy.y += (dy / dist) * speed * deltaTime;
                 }
@@ -727,6 +763,14 @@ export class GunBeanHandler {
         const gamePlayer = game.players.get(socket.id);
         if (!gamePlayer || gamePlayer.isDead) return;
 
+        // 弹药检查：正在换弹或没有子弹时不能射击
+        if (gamePlayer.isReloading) return;
+        if (gamePlayer.ammo <= 0) {
+            // 自动开始换弹
+            this.startReload(game, gamePlayer);
+            return;
+        }
+
         const boat = game.boats.get(gamePlayer.boatId);
         if (!boat) return;
 
@@ -735,13 +779,35 @@ export class GunBeanHandler {
         const len = Math.sqrt(dirX * dirX + dirY * dirY);
         if (len === 0) return;
 
+        // 消耗弹药
+        gamePlayer.ammo--;
+
+        // 发送弹药更新
+        socket.emit(GUNBEAN_EVENTS.AMMO_UPDATE, {
+            ammo: gamePlayer.ammo,
+            maxAmmo: gamePlayer.maxAmmo,
+            isReloading: false
+        });
+
+        // 弹药用完自动换弹
+        if (gamePlayer.ammo <= 0) {
+            this.startReload(game, gamePlayer);
+        }
+
         const normX = dirX / len;
         const normY = dirY / len;
 
         const weapon = gamePlayer.weapon || DEFAULT_WEAPON;
 
-        // 计算座位偏移
-        const seatOffsets = [-45, -15, 15, 45];
+        // 动态座位偏移（根据玩家数量）
+        const playerCount = game.players.size;
+        const getSeatOffsets = (count) => {
+            if (count <= 1) return [0];
+            if (count === 2) return [-20, 20];
+            if (count === 3) return [-30, 0, 30];
+            return [-45, -15, 15, 45];
+        };
+        const seatOffsets = getSeatOffsets(playerCount);
         const seatOffset = seatOffsets[gamePlayer.seatIndex] || 0;
         const startX = boat.x + seatOffset;
         const startY = boat.y;
@@ -843,6 +909,79 @@ export class GunBeanHandler {
     }
 
     /**
+     * 开始换弹
+     */
+    startReload(game, gamePlayer) {
+        if (gamePlayer.isReloading) return;
+        if (gamePlayer.ammo >= gamePlayer.maxAmmo) return;
+
+        gamePlayer.isReloading = true;
+
+        // 计算换弹时间（受技能影响）
+        const reloadLevel = gamePlayer.skills['reload'] || 0;
+        const reloadTimeMultiplier = Math.max(0.4, 1 - reloadLevel * 0.12); // 每级减少12%，最低40%
+        const reloadTime = CONFIG.RELOAD_TIME * reloadTimeMultiplier;
+
+        gamePlayer.reloadEndTime = Date.now() + reloadTime;
+
+        // 通知客户端开始换弹
+        const socket = this.io.sockets.sockets.get(gamePlayer.id);
+        if (socket) {
+            socket.emit(GUNBEAN_EVENTS.RELOAD_START, {
+                reloadTime: reloadTime
+            });
+        }
+
+        // 设置定时器完成换弹
+        setTimeout(() => {
+            this.finishReload(game, gamePlayer);
+        }, reloadTime);
+    }
+
+    /**
+     * 完成换弹
+     */
+    finishReload(game, gamePlayer) {
+        if (!gamePlayer.isReloading) return;
+
+        // 计算最大弹药（受技能影响）
+        const ammoCapacityLevel = gamePlayer.skills['ammoCapacity'] || 0;
+        gamePlayer.maxAmmo = CONFIG.MAX_AMMO + ammoCapacityLevel * 2; // 每级+2发
+
+        gamePlayer.ammo = gamePlayer.maxAmmo;
+        gamePlayer.isReloading = false;
+        gamePlayer.reloadEndTime = 0;
+
+        // 通知客户端换弹完成
+        const socket = this.io.sockets.sockets.get(gamePlayer.id);
+        if (socket) {
+            socket.emit(GUNBEAN_EVENTS.RELOAD_COMPLETE, {
+                ammo: gamePlayer.ammo,
+                maxAmmo: gamePlayer.maxAmmo
+            });
+        }
+    }
+
+    /**
+     * 处理手动换弹请求
+     */
+    handleReload(socket) {
+        const player = this.playerManager.getPlayer(socket.id);
+        if (!player?.roomId) return;
+
+        const game = this.games.get(player.roomId);
+        if (!game || !game.isRunning || game.isPaused) return;
+
+        const gamePlayer = game.players.get(socket.id);
+        if (!gamePlayer || gamePlayer.isDead) return;
+
+        // 弹药未满才能换弹
+        if (gamePlayer.ammo < gamePlayer.maxAmmo) {
+            this.startReload(game, gamePlayer);
+        }
+    }
+
+    /**
      * 子弹命中敌人
      */
     hitEnemy(game, bullet, enemy) {
@@ -859,6 +998,16 @@ export class GunBeanHandler {
         }
 
         enemy.hp -= damage;
+
+        // ========== 击退效果 ==========
+        // 根据子弹方向给敌人施加击退力
+        const bulletSpeed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+        if (bulletSpeed > 0) {
+            const knockbackX = (bullet.vx / bulletSpeed) * CONFIG.KNOCKBACK_FORCE;
+            const knockbackY = (bullet.vy / bulletSpeed) * CONFIG.KNOCKBACK_FORCE;
+            enemy.x += knockbackX * 0.5;  // 立即位移
+            enemy.y += knockbackY * 0.5;
+        }
 
         // 应用特殊效果
         if (bullet.freeze > 0) {
@@ -903,8 +1052,9 @@ export class GunBeanHandler {
     killEnemy(game, enemy, killerId) {
         game.enemies.delete(enemy.id);
 
-        // 生成经验球
-        const expAmount = CONFIG.ENEMY_EXP + Math.floor(game.difficultyLevel * 2);
+        // 生成经验球（使用敌人的经验倍率）
+        const expMult = enemy.expMultiplier || 1.0;
+        const expAmount = Math.ceil((CONFIG.ENEMY_EXP + Math.floor(game.difficultyLevel * 2)) * expMult);
         this.spawnExpOrb(game, enemy.x, enemy.y, expAmount);
 
         const killer = game.players.get(killerId);
@@ -997,6 +1147,14 @@ export class GunBeanHandler {
             boat.hp -= CONFIG.ENEMY_DAMAGE;
         }
 
+        // 通知客户端船只受伤（用于触发震屏效果）
+        this.io.to(game.roomId).emit(GUNBEAN_EVENTS.BOAT_DAMAGED, {
+            boatId: boat.id,
+            damage: CONFIG.ENEMY_DAMAGE,
+            hp: boat.hp,
+            maxHp: boat.maxHp
+        });
+
         game.enemies.delete(enemy.id);
         this.io.to(game.roomId).emit(GUNBEAN_EVENTS.ENEMY_DIED, {
             enemyId: enemy.id,
@@ -1072,11 +1230,12 @@ export class GunBeanHandler {
         const dy = targetBoat.y - reviverBoat.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (reviver.boatId !== target.boatId && dist > CONFIG.REVIVE_DISTANCE) return;
+        // 单船模式：同船队友可以直接复活
+        if (reviver.boatId !== target.boatId) return; // 理论上不会发生
 
         target.isDead = false;
         reviver.revives++;
-        targetBoat.hp = CONFIG.BOAT_MAX_HP;
+        // 复活不恢复船只血量，保持共享血量机制
 
         this.io.to(player.roomId).emit(GUNBEAN_EVENTS.PLAYER_REVIVED, {
             playerId: target.id,
@@ -1110,8 +1269,13 @@ export class GunBeanHandler {
             case 3: x = halfW; y = (Math.random() - 0.5) * CONFIG.ARENA_HEIGHT * 0.8; break;
         }
 
-        // 根据难度增加敌人血量
-        const enemyHp = CONFIG.ENEMY_HP + Math.floor(game.difficultyLevel * 0.5);
+        // 随机选择敌人类型（1-3）
+        const enemyType = Math.floor(Math.random() * 3) + 1;
+        const typeConfig = ENEMY_TYPES[enemyType];
+
+        // 根据难度和类型计算敌人属性
+        const baseHp = CONFIG.ENEMY_HP + Math.floor(game.difficultyLevel * 0.5);
+        const enemyHp = Math.ceil(baseHp * typeConfig.hpMultiplier);
 
         const enemyId = `enemy_${game.enemyIdCounter++}`;
         const enemy = {
@@ -1119,7 +1283,11 @@ export class GunBeanHandler {
             x: x,
             y: y,
             hp: enemyHp,
-            maxHp: enemyHp
+            maxHp: enemyHp,
+            type: enemyType,                              // 敌人类型
+            speedMultiplier: typeConfig.speedMultiplier,  // 速度倍率
+            expMultiplier: typeConfig.expMultiplier,      // 经验倍率
+            size: typeConfig.size                         // 尺寸
         };
 
         game.enemies.set(enemyId, enemy);
@@ -1169,6 +1337,8 @@ export class GunBeanHandler {
                 y: e.y,
                 hp: e.hp,
                 maxHp: e.maxHp,
+                type: e.type || 1,           // 敌人类型
+                size: e.size || 30,          // 敌人尺寸
                 frozen: e.frozen || false,
                 poisoned: e.poisoned || false
             }))

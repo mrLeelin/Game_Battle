@@ -46,15 +46,22 @@ export class GunBeanUI {
             <!-- 左上角状态 -->
             <div class="gb-status">
                 <div class="gb-health">
-                    <span class="gb-health-icon">🚢</span>
+                    <span class="gb-health-icon">❤️</span>
                     <div class="gb-health-bar">
                         <div class="gb-health-fill"></div>
                     </div>
-                    <span class="gb-health-text">10/10</span>
+                    <span class="gb-health-text">20/20</span>
                 </div>
                 <div class="gb-shield" style="display:none">
                     <span class="gb-shield-icon">🛡️</span>
                     <span class="gb-shield-text">0</span>
+                </div>
+                <div class="gb-ammo">
+                    <span class="gb-ammo-icon">🔫</span>
+                    <span class="gb-ammo-text">5/5</span>
+                    <div class="gb-reload-bar" style="display:none">
+                        <div class="gb-reload-fill"></div>
+                    </div>
                 </div>
             </div>
 
@@ -90,7 +97,7 @@ export class GunBeanUI {
 
             <!-- 操作提示 -->
             <div class="gb-controls">
-                <div class="gb-control-hint">🚤 鼠标瞄准 | 点击/空格 射击 | 击杀敌人获得经验升级！</div>
+                <div class="gb-control-hint">🚤 鼠标瞄准 | 点击/空格 射击 | R键换弹 | ❤️ 团队共享血量</div>
             </div>
 
             <!-- 结算界面 -->
@@ -268,6 +275,54 @@ export class GunBeanUI {
                 color: #4488ff;
                 font-size: 20px;
                 font-weight: bold;
+            }
+
+            /* 弹药显示 */
+            .gb-ammo {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: rgba(0, 0, 0, 0.6);
+                padding: 8px 15px;
+                border-radius: 5px;
+                position: relative;
+            }
+
+            .gb-ammo-icon {
+                font-size: 20px;
+            }
+
+            .gb-ammo-text {
+                color: #ffd700;
+                font-size: 20px;
+                font-weight: bold;
+                min-width: 50px;
+            }
+
+            .gb-ammo-text.empty {
+                color: #ff4444;
+            }
+
+            .gb-ammo-text.reloading {
+                color: #888;
+            }
+
+            .gb-reload-bar {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: #333;
+                border-radius: 0 0 5px 5px;
+                overflow: hidden;
+            }
+
+            .gb-reload-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #ffd700, #ffaa00);
+                width: 0%;
+                transition: width 0.1s linear;
             }
 
             /* 技能列表 */
@@ -617,6 +672,59 @@ export class GunBeanUI {
             container.style.display = count > 0 ? 'flex' : 'none';
         }
         if (text) text.textContent = count;
+    }
+
+    /**
+     * 更新弹药显示
+     */
+    updateAmmo(ammo, maxAmmo) {
+        const text = this.container.querySelector('.gb-ammo-text');
+        if (text) {
+            text.textContent = `${ammo}/${maxAmmo}`;
+            text.classList.remove('empty', 'reloading');
+            if (ammo === 0) {
+                text.classList.add('empty');
+            }
+        }
+    }
+
+    /**
+     * 显示换弹进度
+     */
+    showReloading(reloadTime) {
+        const text = this.container.querySelector('.gb-ammo-text');
+        const bar = this.container.querySelector('.gb-reload-bar');
+        const fill = this.container.querySelector('.gb-reload-fill');
+
+        if (text) {
+            text.textContent = '换弹中...';
+            text.classList.add('reloading');
+        }
+
+        if (bar && fill) {
+            bar.style.display = 'block';
+            fill.style.width = '0%';
+            fill.style.transition = `width ${reloadTime}ms linear`;
+
+            // 强制重绘后开始动画
+            requestAnimationFrame(() => {
+                fill.style.width = '100%';
+            });
+        }
+    }
+
+    /**
+     * 隐藏换弹进度
+     */
+    hideReloading() {
+        const bar = this.container.querySelector('.gb-reload-bar');
+        const fill = this.container.querySelector('.gb-reload-fill');
+
+        if (bar) bar.style.display = 'none';
+        if (fill) {
+            fill.style.width = '0%';
+            fill.style.transition = 'none';
+        }
     }
 
     /**

@@ -238,6 +238,12 @@ export class GunBeanInput {
                 this.game.tryRevive();
             }
         }
+
+        // R键换弹
+        if (e.code === 'KeyR') {
+            e.preventDefault();
+            this.game.reload();
+        }
     }
 
     /**

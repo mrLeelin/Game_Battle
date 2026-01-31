@@ -60,3 +60,8 @@ Battle/
 - 每次出现错误必须记录到 `doc/error/`。
 - 每次写代码或改动文件都必须在 `doc/changes/` 留档（全量记录）。
 - 写代码之前先阅读 `doc/error/`，避免重复问题。
+
+
+## 文档
+- 枪豆人 贴图资源在  @doc/game/qiangdouren/贴图资源.md
+  

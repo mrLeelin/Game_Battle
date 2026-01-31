@@ -1,6 +1,6 @@
 /**
  * 枪豆人 - 2D Canvas 场景管理
- * 四人船版本：四名玩家坐在一艘船上，位置插值平滑移动
+ * 单船模式：所有玩家坐在同一艘船上，共享血量
  */
 
 // 场地配置（扩大到全屏）
@@ -8,6 +8,13 @@ const ARENA = {
     WIDTH: 1200,
     HEIGHT: 800,
     WATER_MARGIN: 50
+};
+
+// 小怪贴图路径配置
+const MONSTER_TEXTURES = {
+    1: '/texture/qiangdouren/monster_1.png',
+    2: '/texture/qiangdouren/monster_2.png',
+    3: '/texture/qiangdouren/monster_3.png'
 };
 
 // 玩家颜色配置（参考图：黄、青、白/彩虹、粉）
@@ -18,11 +25,17 @@ const PLAYER_COLORS = [
     '#ffb6c1'    // 粉色
 ];
 
-// 船只配置（加宽容纳4人）
+// 船只配置（单船模式，根据玩家数量动态调整）
 const BOAT_CONFIG = {
-    WIDTH: 140,     // 加宽容纳4人
+    WIDTH: 140,     // 船宽度
     HEIGHT: 50,
-    SEAT_OFFSETS: [-45, -15, 15, 45]  // 4个座位的X偏移
+    // 根据玩家数量动态计算座位偏移
+    getSeatOffsets: (playerCount) => {
+        if (playerCount <= 1) return [0];
+        if (playerCount === 2) return [-20, 20];
+        if (playerCount === 3) return [-30, 0, 30];
+        return [-45, -15, 15, 45];  // 4人
+    }
 };
 
 export class GunBeanScene {
@@ -37,6 +50,11 @@ export class GunBeanScene {
         this.enemies = new Map();
         this.expOrbs = new Map();  // 经验球
         this.particles = [];
+        this.physicsParticles = [];  // 物理粒子（带重力和地面碰撞）
+
+        // 小怪贴图
+        this.monsterTextures = {};
+        this.texturesLoaded = false;
 
         // 本地玩家ID（用于区分名字颜色）
         this.localPlayerId = null;
@@ -52,6 +70,11 @@ export class GunBeanScene {
 
         // 插值系数
         this.lerpSpeed = 0.15;
+
+        // 震屏效果
+        this.shakeIntensity = 0;
+        this.shakeDuration = 0;
+        this.shakeStartTime = 0;
     }
 
     /**
@@ -77,6 +100,38 @@ export class GunBeanScene {
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
+
+        // 加载小怪贴图
+        await this.loadMonsterTextures();
+    }
+
+    /**
+     * 加载小怪贴图
+     */
+    async loadMonsterTextures() {
+        const loadImage = (src) => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => {
+                    console.warn(`[GunBeanScene] 贴图加载失败: ${src}`);
+                    resolve(null);
+                };
+                img.src = src;
+            });
+        };
+
+        // 并行加载所有贴图
+        const loadPromises = Object.entries(MONSTER_TEXTURES).map(async ([type, src]) => {
+            const img = await loadImage(src);
+            if (img) {
+                this.monsterTextures[type] = img;
+            }
+        });
+
+        await Promise.all(loadPromises);
+        this.texturesLoaded = true;
+        console.log('[GunBeanScene] 小怪贴图加载完成', Object.keys(this.monsterTextures));
     }
 
     /**
@@ -114,6 +169,109 @@ export class GunBeanScene {
         } else {
             this.cameraX += (targetX - this.cameraX) * 0.08;
             this.cameraY += (targetY - this.cameraY) * 0.08;
+        }
+    }
+
+    // ========== 视觉效果方法 ==========
+
+    /**
+     * 开始震屏效果
+     * @param {number} intensity 震动强度（像素）
+     * @param {number} duration 持续时间（毫秒）
+     */
+    startScreenShake(intensity = 10, duration = 200) {
+        this.shakeIntensity = intensity;
+        this.shakeDuration = duration;
+        this.shakeStartTime = Date.now();
+    }
+
+    /**
+     * 获取当前震屏偏移
+     */
+    getShakeOffset() {
+        if (this.shakeIntensity <= 0) return { x: 0, y: 0 };
+
+        const elapsed = Date.now() - this.shakeStartTime;
+        if (elapsed >= this.shakeDuration) {
+            this.shakeIntensity = 0;
+            return { x: 0, y: 0 };
+        }
+
+        // 震动强度随时间衰减
+        const progress = 1 - (elapsed / this.shakeDuration);
+        const currentIntensity = this.shakeIntensity * progress;
+
+        return {
+            x: (Math.random() - 0.5) * 2 * currentIntensity,
+            y: (Math.random() - 0.5) * 2 * currentIntensity
+        };
+    }
+
+    /**
+     * 触发实体闪白效果
+     * @param {string} entityType 实体类型 ('enemy' | 'boat' | 'player')
+     * @param {string|number} entityId 实体ID
+     * @param {number} duration 闪白持续时间（毫秒）
+     */
+    flashEntity(entityType, entityId, duration = 100) {
+        let entity = null;
+        if (entityType === 'enemy') {
+            entity = this.enemies.get(entityId);
+        } else if (entityType === 'boat') {
+            entity = this.boats.get(entityId);
+        } else if (entityType === 'player') {
+            entity = this.players.get(entityId);
+        }
+
+        if (entity) {
+            entity.flashEndTime = Date.now() + duration;
+        }
+    }
+
+    /**
+     * 创建物理死亡粒子（带重力和地面碰撞）
+     * 增强版：更多粒子、更大力度、更夸张的爆炸效果
+     */
+    createDeathExplosion(x, y, color = '#ff4444') {
+        const particleCount = 30;  // 粒子数量翻倍
+        const colors = ['#ff4444', '#ff6600', '#ffaa00', '#ffffff', '#ffff00'];
+
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.5;
+            const speed = 300 + Math.random() * 400;  // 速度大幅提升
+
+            this.physicsParticles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 250,  // 更强的向上爆发力
+                color: colors[Math.floor(Math.random() * colors.length)],
+                radius: 8 + Math.random() * 12,  // 更大的粒子
+                life: 2.0 + Math.random() * 0.8,  // 更长的生命
+                gravity: 800,  // 更强的重力
+                bounce: 0.6 + Math.random() * 0.25,  // 更强的弹性
+                friction: 0.85
+            });
+        }
+    }
+
+    /**
+     * 创建船只受击粒子
+     */
+    createHitParticles(x, y) {
+        const particleCount = 8;
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 50 + Math.random() * 100;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed * 0.05,
+                vy: Math.sin(angle) * speed * 0.05,
+                color: Math.random() > 0.5 ? '#ff0000' : '#ff6600',
+                radius: 3 + Math.random() * 3,
+                life: 0.5
+            });
         }
     }
 
@@ -246,6 +404,8 @@ export class GunBeanScene {
             targetX: enemyData.x || 0,
             targetY: enemyData.y || 0,
             hp: enemyData.hp || 3,
+            type: enemyData.type || 1,    // 敌人类型（1-3）
+            size: enemyData.size || 30,   // 敌人尺寸
             rotation: 0
         };
         this.enemies.set(enemyData.id, enemy);
@@ -265,11 +425,14 @@ export class GunBeanScene {
     }
 
     /**
-     * 移除敌人
+     * 移除敌人（带夸张死亡粒子效果）
      */
     removeEnemy(enemyId) {
         const enemy = this.enemies.get(enemyId);
         if (enemy) {
+            // 使用物理粒子创建夸张的死亡效果
+            this.createDeathExplosion(enemy.x, enemy.y);
+            // 同时保留普通爆炸效果叠加
             this.createExplosion(enemy.x, enemy.y);
             this.enemies.delete(enemyId);
         }
@@ -397,7 +560,7 @@ export class GunBeanScene {
             bullet.y += bullet.vy * deltaTime;
         });
 
-        // 更新粒子
+        // 更新普通粒子
         this.particles = this.particles.filter(p => {
             p.x += p.vx;
             p.y += p.vy;
@@ -405,6 +568,42 @@ export class GunBeanScene {
             p.life -= deltaTime * 2;
             p.radius *= 0.98;
             return p.life > 0;
+        });
+
+        // 更新物理粒子（带重力和地面碰撞）
+        const groundY = ARENA.HEIGHT / 2 - 20;  // 地面位置（场地底部）
+        this.physicsParticles = this.physicsParticles.filter(p => {
+            // 应用重力
+            p.vy += p.gravity * deltaTime;
+
+            // 更新位置
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+
+            // 地面碰撞检测和反弹
+            if (p.y > groundY) {
+                p.y = groundY;
+                p.vy = -p.vy * p.bounce;
+                p.vx *= p.friction;
+
+                // 速度太小时停止反弹
+                if (Math.abs(p.vy) < 20) {
+                    p.vy = 0;
+                }
+            }
+
+            // 侧边界碰撞
+            const boundX = ARENA.WIDTH / 2 - 10;
+            if (p.x < -boundX || p.x > boundX) {
+                p.vx = -p.vx * p.bounce;
+                p.x = Math.max(-boundX, Math.min(boundX, p.x));
+            }
+
+            // 生命值衰减
+            p.life -= deltaTime;
+            p.radius *= 0.995;
+
+            return p.life > 0 && p.radius > 0.5;
         });
     }
 
@@ -417,6 +616,11 @@ export class GunBeanScene {
         const h = this.canvas.height;
 
         ctx.clearRect(0, 0, w, h);
+
+        // 应用震屏偏移
+        const shake = this.getShakeOffset();
+        ctx.save();
+        ctx.translate(shake.x, shake.y);
 
         // 绘制海洋背景
         this.drawOcean(ctx, w, h);
@@ -446,6 +650,12 @@ export class GunBeanScene {
 
         // 绘制粒子
         this.drawParticles(ctx);
+
+        // 绘制物理粒子
+        this.drawPhysicsParticles(ctx);
+
+        // 恢复震屏偏移
+        ctx.restore();
     }
 
     /**
@@ -523,6 +733,9 @@ export class GunBeanScene {
         // 检查船只是否被摧毁
         const isDestroyed = boat.hp <= 0;
 
+        // 检测是否在闪白状态
+        const isFlashing = boat.flashEndTime && Date.now() < boat.flashEndTime;
+
         ctx.save();
         ctx.translate(pos.x, pos.y);
 
@@ -541,8 +754,8 @@ export class GunBeanScene {
             ctx.fill();
         }
 
-        // 船身主体（棕色木船，矩形带圆角）
-        ctx.fillStyle = '#8B4513';
+        // 船身主体（闪白时使用白色，否则棕色木船）
+        ctx.fillStyle = isFlashing ? '#ffffff' : '#8B4513';
         ctx.beginPath();
         const shipLeft = -width * 0.5;
         const shipRight = width * 0.5;
@@ -562,8 +775,8 @@ export class GunBeanScene {
         ctx.closePath();
         ctx.fill();
 
-        // 船边框（深棕色）
-        ctx.strokeStyle = '#5D3A1A';
+        // 船边框（闪白时使用浅灰色，否则深棕色）
+        ctx.strokeStyle = isFlashing ? '#cccccc' : '#5D3A1A';
         ctx.lineWidth = 3 * this.scale;
         ctx.stroke();
 
@@ -597,8 +810,9 @@ export class GunBeanScene {
     drawPlayerOnBoat(ctx, boat, player) {
         const pos = this.gameToScreen(boat.x, boat.y);
 
-        // 4人座位偏移
-        const seatOffsets = BOAT_CONFIG.SEAT_OFFSETS;
+        // 动态座位偏移（根据船上玩家数量）
+        const playerCount = boat.playerIds ? boat.playerIds.length : this.players.size;
+        const seatOffsets = BOAT_CONFIG.getSeatOffsets(playerCount);
         const offsetX = (seatOffsets[player.seatIndex] || 0) * this.scale;
 
         const playerX = pos.x + offsetX;
@@ -737,35 +951,61 @@ export class GunBeanScene {
     }
 
     /**
-     * 绘制敌人
+     * 绘制敌人（使用贴图）
      */
     drawEnemy(ctx, enemy) {
         const pos = this.gameToScreen(enemy.x, enemy.y);
-        const size = 30 * this.scale;
+        const size = (enemy.size || 30) * this.scale;
+
+        // 检测是否在闪白状态
+        const isFlashing = enemy.flashEndTime && Date.now() < enemy.flashEndTime;
 
         ctx.save();
         ctx.translate(pos.x, pos.y);
         ctx.rotate(enemy.rotation);
 
-        ctx.fillStyle = '#ff0000';
-        ctx.fillRect(-size / 2, -size / 2, size, size);
+        // 获取敌人类型对应的贴图
+        const texture = this.monsterTextures[enemy.type || 1];
 
-        ctx.strokeStyle = '#aa0000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-size / 2, -size / 2, size, size);
+        if (texture && this.texturesLoaded) {
+            // 使用贴图绘制
+            if (isFlashing) {
+                // 闪白效果：先绘制白色底，再叠加半透明贴图
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-size / 2, -size / 2, size, size);
+                ctx.globalAlpha = 0.3;
+            }
+            ctx.drawImage(texture, -size / 2, -size / 2, size, size);
+        } else {
+            // 贴图未加载时使用备用颜色绘制
+            const fallbackColors = {
+                1: '#ff0000',  // 普通：红色
+                2: '#00ff00',  // 快速：绿色
+                3: '#0000ff'   // 重型：蓝色
+            };
+            ctx.fillStyle = isFlashing ? '#ffffff' : (fallbackColors[enemy.type] || '#ff0000');
+            ctx.fillRect(-size / 2, -size / 2, size, size);
 
-        ctx.fillStyle = '#ffff00';
-        const eyeSize = size * 0.2;
-        ctx.beginPath();
-        ctx.arc(-size * 0.2, -size * 0.1, eyeSize, 0, Math.PI * 2);
-        ctx.arc(size * 0.2, -size * 0.1, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
+            ctx.strokeStyle = isFlashing ? '#cccccc' : '#aa0000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-size / 2, -size / 2, size, size);
 
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(-size * 0.2, -size * 0.1, eyeSize * 0.5, 0, Math.PI * 2);
-        ctx.arc(size * 0.2, -size * 0.1, eyeSize * 0.5, 0, Math.PI * 2);
-        ctx.fill();
+            // 闪白时不绘制眼睛细节
+            if (!isFlashing) {
+                ctx.fillStyle = '#ffff00';
+                const eyeSize = size * 0.2;
+                ctx.beginPath();
+                ctx.arc(-size * 0.2, -size * 0.1, eyeSize, 0, Math.PI * 2);
+                ctx.arc(size * 0.2, -size * 0.1, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-size * 0.2, -size * 0.1, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.arc(size * 0.2, -size * 0.1, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
 
         ctx.restore();
     }
@@ -815,6 +1055,30 @@ export class GunBeanScene {
     }
 
     /**
+     * 绘制物理粒子（带重力和碰撞的粒子）
+     */
+    drawPhysicsParticles(ctx) {
+        this.physicsParticles.forEach(p => {
+            const pos = this.gameToScreen(p.x, p.y);
+
+            // 透明度随生命值衰减
+            ctx.globalAlpha = Math.min(1, p.life);
+
+            // 发光效果
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 8;
+
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, p.radius * this.scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    /**
      * 销毁
      */
     destroy() {
@@ -830,6 +1094,7 @@ export class GunBeanScene {
         this.enemies.clear();
         this.expOrbs.clear();
         this.particles = [];
+        this.physicsParticles = [];
 
         this.canvas = null;
         this.ctx = null;
