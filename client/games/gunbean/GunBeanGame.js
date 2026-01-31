@@ -8,10 +8,11 @@ import { GunBeanScene, ARENA } from './GunBeanScene.js';
 import { GunBeanUI } from './GunBeanUI.js';
 import { GunBeanInput } from './GunBeanInput.js';
 import { GunBeanSkillPicker, GunBeanPauseIndicator } from './GunBeanSkillPicker.js';
+import { gunBeanAudio } from './GunBeanAudio.js';
 
 // 游戏配置
 const CONFIG = {
-    BOAT_MAX_HP: 10,
+    BOAT_MAX_HP: 5,         // 5颗心
     BULLET_SPEED: 800,      // 子弹速度翻倍，打击感更强
     REVIVE_DISTANCE: 80
 };
@@ -45,8 +46,8 @@ export class GunBeanGame {
         this.isDead = false;
 
         // 弹药系统
-        this.ammo = 5;
-        this.maxAmmo = 5;
+        this.ammo = 3;
+        this.maxAmmo = 3;
         this.isReloading = false;
 
         // 肉鸽系统
@@ -86,6 +87,10 @@ export class GunBeanGame {
         this.skillPicker = new GunBeanSkillPicker();
         this.pauseIndicator = new GunBeanPauseIndicator();
 
+        // 初始化音频并播放大厅音乐
+        gunBeanAudio.init();
+        gunBeanAudio.playBgm('bgm_lobby');
+
         this.isReady = true;
 
         if (this.pendingInitData) {
@@ -108,7 +113,7 @@ export class GunBeanGame {
         network.on(GAME_EVENTS.START, () => {
             this.isRunning = true;
             this.isPaused = false;
-            this.ui.showMessage('游戏开始！');
+            // 游戏开始（已移除 UI 提示）
         });
 
         network.on(GAME_EVENTS.END, (data) => {
@@ -197,6 +202,7 @@ export class GunBeanGame {
         // 技能选择
         network.on(GUNBEAN_EVENTS.SKILL_CHOICES, (data) => {
             this.handleSkillChoices(data);
+            this.ui.showCursor(); // 显示鼠标
         });
 
         // 技能选择结果
@@ -217,6 +223,8 @@ export class GunBeanGame {
         network.on(GUNBEAN_EVENTS.GAME_RESUME, () => {
             this.isPaused = false;
             this.pauseIndicator.hide();
+            this.ui.hideCursor(); // 隐藏鼠标，恢复准星
+            this.ui.showCrosshair();
         });
 
         // ========== 弹药系统事件 ==========
@@ -243,6 +251,16 @@ export class GunBeanGame {
             this.ui.updateAmmo(this.ammo, this.maxAmmo);
             this.ui.hideReloading();
         });
+
+        // 爆炸效果视觉反馈
+        network.on(GUNBEAN_EVENTS.EXPLOSIVE_EFFECT, (data) => {
+            this.scene.createExplosiveEffect(data.x, data.y, data.radius);
+        });
+
+        // 闪电链效果视觉反馈
+        network.on(GUNBEAN_EVENTS.CHAIN_EFFECT, (data) => {
+            this.scene.createChainEffect(data.targets);
+        });
     }
 
     /**
@@ -250,6 +268,9 @@ export class GunBeanGame {
      */
     handleGameInit(data) {
         console.log('[GunBeanGame] 收到初始化数据:', data);
+
+        // 切换战斗音乐
+        gunBeanAudio.playBgm('bgm_battle');
 
         if (!this.isReady) {
             console.log('[GunBeanGame] 场景未就绪，缓存初始化数据');
@@ -298,6 +319,9 @@ export class GunBeanGame {
                     this.boatHp = this.localBoat.hp || CONFIG.BOAT_MAX_HP;
                     this.boatMaxHp = this.localBoat.maxHp || CONFIG.BOAT_MAX_HP;
                     this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
+
+                    // 初始化低血量警告
+                    this.updateLowHealthWarning();
                 }
             }
         });
@@ -385,6 +409,9 @@ export class GunBeanGame {
                     this.boatMaxHp = b.maxHp;
                     this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
                     this.ui.updateShield(b.shield || 0);
+
+                    // 低血量警告（2颗心以下）
+                    this.updateLowHealthWarning();
                 }
             });
         }
@@ -442,20 +469,60 @@ export class GunBeanGame {
             x: data.x,
             y: data.y,
             vx: data.dirX * CONFIG.BULLET_SPEED,
-            vy: data.dirY * CONFIG.BULLET_SPEED
+            vy: data.dirY * CONFIG.BULLET_SPEED,
+            // 技能效果数据
+            poison: data.poison || 0,
+            fire: data.fire || 0,
+            freeze: data.freeze || 0,
+            explosive: data.explosive || 0,
+            chain: data.chain || 0,
+            bounceLeft: data.bounceLeft || 0,
+            pierceLeft: data.pierceLeft || 0,
+            split: data.split || 0,
+            boomerang: data.boomerang || 0,
+            isOrbital: data.isOrbital || false,
+            isSplit: data.isSplit || false
         });
+
+        // 触发射击效果 (后坐力、音效、抛壳)
+        // 计算角度
+        const angle = Math.atan2(data.dirY, data.dirX);
+        this.scene.triggerShootEffect(data.playerId, angle);
     }
 
     /**
      * 处理子弹命中（更新船只HP）
      */
     handleBulletHit(data) {
+        // 获取子弹方向 (用于受击反馈)
+        let hitDir = null;
+        const bullet = this.scene.bullets.get(data.bulletId);
+        if (bullet) {
+            const len = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+            if (len > 0) {
+                hitDir = { x: bullet.vx / len, y: bullet.vy / len };
+            }
+        }
+
         this.scene.removeBullet(data.bulletId);
 
         if (data.hitType === 'enemy') {
-            // 敌人受击闪白效果
-            this.scene.flashEntity('enemy', data.enemyId, 80);
-            this.ui.showMessage('命中！', 'success');
+            // 记录受击方向
+            const enemy = this.scene.enemies.get(data.enemyId);
+            if (enemy && hitDir) {
+                enemy.lastHitDir = hitDir;
+            }
+
+            // 敌人受击闪白效果（延长持续时间）
+            this.scene.flashEntity('enemy', data.enemyId, 150);
+            // 触发敌人受击动画（膨胀虚化 + 音效 + 特效）
+            this.scene.triggerEnemyHit(data.enemyId);
+
+            // 场景内伤害飘字
+            if (enemy) {
+                const damage = data.damage || 1;
+                this.scene.createFloatingText(enemy.x, enemy.y - 20, `-${damage}`, '#ff4444', 28);
+            }
         } else if (data.hitType === 'boat') {
             // 更新被击中船只的HP
             const hitBoat = this.boats.get(data.hitBoatId);
@@ -477,7 +544,6 @@ export class GunBeanGame {
                 this.boatHp = data.boatHp;
                 this.boatMaxHp = data.boatMaxHp;
                 this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
-                this.ui.showMessage('船被击中！', 'warning');
 
                 // 船只受击：闪白 + 震屏
                 this.scene.flashEntity('boat', data.hitBoatId, 150);
@@ -506,6 +572,7 @@ export class GunBeanGame {
             this.isDead = true;
             this.ui.showDeathOverlay(true);
             this.ui.hideCrosshair();
+            this.ui.showCursor();
         }
 
         const aliveCount = Array.from(this.players.values()).filter(p => !p.isDead).length;
@@ -543,13 +610,11 @@ export class GunBeanGame {
             this.boatMaxHp = data.boatMaxHp || CONFIG.BOAT_MAX_HP;
             this.ui.showDeathOverlay(false);
             this.ui.showCrosshair();
+            this.ui.hideCursor();
             this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
-            this.ui.showMessage('已复活！', 'success');
         }
 
-        if (data.reviverId === this.localPlayerId) {
-            this.ui.showMessage('复活了队友！', 'success');
-        }
+        // 复活了队友（已移除 UI 提示）
 
         const aliveCount = Array.from(this.players.values()).filter(p => !p.isDead).length;
         this.ui.updateAlive(aliveCount);
@@ -566,11 +631,14 @@ export class GunBeanGame {
      * 处理敌人死亡
      */
     handleEnemyDied(data) {
-        this.scene.removeEnemy(data.enemyId);
+        const enemy = this.scene.enemies.get(data.enemyId);
+        const hitDir = enemy ? enemy.lastHitDir : null;
+        
+        this.scene.removeEnemy(data.enemyId, hitDir);
         this.enemies.delete(data.enemyId);
 
-        // 敌人死亡震屏效果
-        this.scene.startScreenShake(8, 150);
+        // 敌人死亡震屏效果（增强）
+        this.scene.startScreenShake(20, 250);
 
         if (data.killerId === this.localPlayerId) {
             this.ui.showMessage('+1 击杀！', 'success');
@@ -625,6 +693,18 @@ export class GunBeanGame {
      */
     handleSkillChoices(data) {
         console.log('[GunBeanGame] 收到技能选择:', data);
+
+        // 如果是广播消息，检查是否是发给自己的
+        if (data.playerId && data.playerId !== this.localPlayerId) {
+            console.log('[GunBeanGame] 技能选择不是发给自己的，忽略');
+            return;
+        }
+
+        if (!data.choices || data.choices.length === 0) {
+            console.error('[GunBeanGame] 技能选择数据为空');
+            return;
+        }
+
         this.skillPicker.show(data);
     }
 
@@ -640,15 +720,18 @@ export class GunBeanGame {
             this.shop.hide();
         }
 
+        if (data.isWin) {
+            gunBeanAudio.playSfx('win');
+        }
+
+        this.ui.showCursor(); // 显示鼠标
+
         const localData = data.players?.find(p => p.id === this.localPlayerId);
         this.ui.showResult({
             isWin: data.isWin,
-            kills: localData?.kills || this.kills,
-            surviveTime: data.surviveTime || this.countdown,
-            revives: localData?.revives || 0,
-            finalRound: data.finalRound || this.currentRound,
-            maxRounds: data.maxRounds || this.maxRounds,
-            coins: localData?.coins || this.coins
+            gameTime: data.gameTime || this.countdown,
+            maxLevel: data.maxLevel || localData?.level || 1,
+            totalKills: data.totalKills || localData?.kills || this.kills
         });
     }
 
@@ -669,7 +752,7 @@ export class GunBeanGame {
         // 隐藏死亡界面（如果有）
         this.ui.showDeathOverlay(false);
 
-        this.ui.showMessage(`第 ${data.round} 轮结束，进入商店！`, 'success');
+        // 进入商店（已移除 UI 提示）
     }
 
     /**
@@ -693,10 +776,9 @@ export class GunBeanGame {
         if (localPlayer && localPlayer.boatId === data.boatId) {
             this.boatHp = 0;
             this.ui.updateBoatHealth(0, this.boatMaxHp);
-            this.ui.showMessage('船被摧毁了！', 'error');
 
-            // 强烈震屏效果
-            this.scene.startScreenShake(25, 500);
+            // 强烈震屏效果（增强）
+            this.scene.startScreenShake(50, 800);
         }
     }
 
@@ -723,15 +805,21 @@ export class GunBeanGame {
             this.boatHp = data.hp;
             this.boatMaxHp = data.maxHp;
             this.ui.updateBoatHealth(this.boatHp, this.boatMaxHp);
-            this.ui.showMessage('敌人撞击！', 'warning');
 
-            // 船只受击效果：闪白 + 震屏 + 粒子
+            // 低血量警告
+            this.updateLowHealthWarning();
+
+            // 船只受击效果：闪白 + 震屏 + 粒子 + 全屏泛白（增强）
             this.scene.flashEntity('boat', data.boatId, 150);
-            this.scene.startScreenShake(15, 300);
+            this.scene.startScreenShake(30, 400);
+            this.scene.startScreenFlash(0.5, 250);  // 全屏泛白效果增强
 
-            // 创建受击粒子
+            // 创建受击粒子 + 伤害飘字
             if (sceneBoat) {
                 this.scene.createHitParticles(sceneBoat.x, sceneBoat.y);
+                // 船只受伤飘字
+                const damage = data.damage || 1;
+                this.scene.createFloatingText(sceneBoat.x, sceneBoat.y - 30, `-${damage}`, '#ff0000', 32);
             }
         }
     }
@@ -775,6 +863,25 @@ export class GunBeanGame {
         this.scene.updateCamera(0, 0);
 
         this.scene.render();
+    }
+
+    /**
+     * 更新低血量警告效果
+     */
+    updateLowHealthWarning() {
+        if (!this.scene) return;
+
+        // 2颗心以下触发警告
+        const lowHealthThreshold = 2;
+        const isLowHealth = this.boatHp <= lowHealthThreshold && this.boatHp > 0;
+
+        // 计算强度：血量越低强度越高
+        let intensity = 0;
+        if (isLowHealth) {
+            intensity = 1 - (this.boatHp / lowHealthThreshold);  // 2血=0.5, 1血=1.0
+        }
+
+        this.scene.setLowHealthWarning(isLowHealth, intensity);
     }
 
     /**
@@ -830,19 +937,14 @@ export class GunBeanGame {
 
         // 正在换弹时不能射击
         if (this.isReloading) {
-            this.ui.showMessage('换弹中...', 'warning');
             return;
         }
 
-        // 没有弹药时提示
-        if (this.ammo <= 0) {
-            this.ui.showMessage('弹药用尽！', 'warning');
-            return;
-        }
-
+        // 发送射击事件（即使没有子弹也发送，服务端处理空枪逻辑）
         network.emit(GUNBEAN_EVENTS.SHOOT, {
             dirX,
-            dirY
+            dirY,
+            isEmpty: this.ammo <= 0  // 标记是否空枪
         });
     }
 
@@ -902,8 +1004,22 @@ export class GunBeanGame {
             network.emit(GUNBEAN_EVENTS.REVIVE, {
                 targetId: nearestDead.id
             });
-        } else {
-            this.ui.showMessage('附近没有倒下的队友', 'warning');
+        }
+        // 没有倒下的队友（已移除 UI 提示）
+    }
+
+    /**
+     * GM模式：增加20%经验值
+     */
+    gmAddExp() {
+        if (!this.isRunning) return;
+
+        // 发送GM经验增加请求
+        network.emit(GUNBEAN_EVENTS.GM_ADD_EXP);
+
+        // 显示提示
+        if (this.ui) {
+            this.ui.showFloatingText('GM: +20% 经验值', '#ffff00');
         }
     }
 
@@ -944,6 +1060,10 @@ export class GunBeanGame {
         network.off(GUNBEAN_EVENTS.RELOAD_START);
         network.off(GUNBEAN_EVENTS.RELOAD_COMPLETE);
 
+        // 清理技能视觉反馈事件
+        network.off(GUNBEAN_EVENTS.EXPLOSIVE_EFFECT);
+        network.off(GUNBEAN_EVENTS.CHAIN_EFFECT);
+
         this.scene?.destroy();
         this.ui?.destroy();
         this.input?.destroy();
@@ -955,5 +1075,7 @@ export class GunBeanGame {
         this.input = null;
         this.skillPicker = null;
         this.pauseIndicator = null;
+        
+        gunBeanAudio.stopBgm();
     }
 }

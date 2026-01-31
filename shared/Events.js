@@ -148,5 +148,18 @@ export const GUNBEAN_EVENTS = {
     SKILL_CHOICES: 'gunbean:skillChoices',     // 发送三选一技能选项
     SKILL_SELECTED: 'gunbean:skillSelected',   // 技能选择结果
     GAME_PAUSE: 'gunbean:gamePause',           // 游戏暂停（有人升级选技能）
-    GAME_RESUME: 'gunbean:gameResume'          // 游戏恢复
+    GAME_RESUME: 'gunbean:gameResume',         // 游戏恢复
+
+    // 特殊技能事件
+    EMP_PULSE: 'gunbean:empPulse',              // 电磁脉冲效果
+    BLACK_HOLE_SPAWNED: 'gunbean:blackHoleSpawned',  // 黑洞生成
+    BLACK_HOLE_EXPIRED: 'gunbean:blackHoleExpired',  // 黑洞消失
+    LASER_FIRED: 'gunbean:laserFired',          // 激光炮发射
+    GHOST_SHIP: 'gunbean:ghostShip',            // 幽灵船无敌效果
+    REVENGE: 'gunbean:revenge',                  // 复仇效果
+    GM_ADD_EXP: 'gunbean:gmAddExp',             // GM模式：增加经验值
+
+    // 技能视觉反馈事件
+    EXPLOSIVE_EFFECT: 'gunbean:explosiveEffect',    // 爆炸效果视觉
+    CHAIN_EFFECT: 'gunbean:chainEffect'            // 闪电链效果视觉
 };

@@ -208,6 +208,11 @@ export class GunBeanInput {
     onMouseDown(e) {
         if (e.button === 0) { // 左键
             this.isShooting = true;
+            // 开火时隐藏鼠标
+            if (this.game.ui && !this.game.isDead) {
+                this.game.ui.hideCursor();
+                this.game.ui.showCrosshair();
+            }
         }
     }
 
@@ -224,10 +229,24 @@ export class GunBeanInput {
      * 键盘按下
      */
     onKeyDown(e) {
+        // ESC键显示鼠标
+        if (e.code === 'Escape') {
+            e.preventDefault();
+            if (this.game.ui) {
+                this.game.ui.showCursor();
+                this.game.ui.hideCrosshair();
+            }
+        }
+
         // 空格键射击
         if (e.code === 'Space') {
             e.preventDefault();
             this.isShooting = true;
+            // 开火时隐藏鼠标
+            if (this.game.ui && !this.game.isDead) {
+                this.game.ui.hideCursor();
+                this.game.ui.showCrosshair();
+            }
         }
 
         // E键复活
@@ -243,6 +262,12 @@ export class GunBeanInput {
         if (e.code === 'KeyR') {
             e.preventDefault();
             this.game.reload();
+        }
+
+        // P键GM模式：增加20%经验值
+        if (e.code === 'KeyP') {
+            e.preventDefault();
+            this.game.gmAddExp();
         }
     }
 

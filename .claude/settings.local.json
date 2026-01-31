@@ -9,7 +9,8 @@
       "Bash(ls \"D:\\\\Project\\\\Js\\\\Battle\\\\doc\\\\changes\"\" 2>nul || mkdir \"D:ProjectJsBattledocchanges \")",
       "mcp__coplay-mcp__get_unity_logs",
       "Bash(git commit:*)",
-      "mcp__coplay-mcp__check_compile_errors"
+      "mcp__coplay-mcp__check_compile_errors",
+      "Bash(node --check:*)"
     ]
   }
 }
