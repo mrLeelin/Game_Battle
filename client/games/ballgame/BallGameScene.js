@@ -298,7 +298,7 @@ export class BallGameScene {
     }
 
     /**
-     * 创建玩家（完整角色模型）
+     * 创建玩家（完整角色模型 - 优化版）
      */
     createPlayer(playerData) {
         const teamColors = [0xff4444, 0x4444ff, 0x44ff44, 0xffff44];
@@ -313,134 +313,187 @@ export class BallGameScene {
             walkPhase: 0,
             jumpHeight: 0,
             targetX: playerData.x || 0,
-            targetZ: playerData.z || 0
+            targetZ: playerData.z || 0,
+            idleTime: 0
         };
 
-        // === 身体部分 ===
-        const bodyMaterial = new THREE.MeshLambertMaterial({ color });
-        const skinMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
-        const shoeMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+        // === 材质 ===
+        const bodyMaterial = new THREE.MeshLambertMaterial({ color: color });
+        const skinMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac }); // 肤色
+        const pantsMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd }); // 白色裤子
+        const shoeMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // 深色鞋子
 
-        // 躯干 (圆柱)
-        const torso = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.25, 0.3, 0.6, 8),
-            bodyMaterial
-        );
-        torso.position.y = 0.7;
+        // === 身体容器 (用于整体缩放/旋转) ===
+        const bodyGroup = new THREE.Group();
+        group.add(bodyGroup);
+        group.userData.bodyGroup = bodyGroup;
+
+        // 1. 躯干 (上身)
+        const torsoGeo = new THREE.BoxGeometry(0.4, 0.45, 0.25);
+        const torso = new THREE.Mesh(torsoGeo, bodyMaterial);
+        torso.position.y = 0.95;
         torso.castShadow = true;
-        group.add(torso);
-        group.userData.torso = torso;
+        bodyGroup.add(torso);
 
-        // 头 (球体)
-        const head = new THREE.Mesh(
-            new THREE.SphereGeometry(0.2, 12, 12),
-            skinMaterial
-        );
-        head.position.y = 1.15;
+        // 2. 腰部/骨盆
+        const pelvisGeo = new THREE.BoxGeometry(0.38, 0.15, 0.24);
+        const pelvis = new THREE.Mesh(pelvisGeo, pantsMaterial);
+        pelvis.position.y = 0.65;
+        pelvis.castShadow = true;
+        bodyGroup.add(pelvis);
+
+        // 3. 头部
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 1.2, 0);
+        bodyGroup.add(headGroup);
+        group.userData.headGroup = headGroup;
+
+        // 头主体
+        const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35); 
+        const head = new THREE.Mesh(headGeo, skinMaterial);
         head.castShadow = true;
-        group.add(head);
+        headGroup.add(head);
 
         // 眼睛
-        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMaterial);
-        leftEye.position.set(-0.07, 1.18, 0.15);
-        group.add(leftEye);
-        const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMaterial);
-        rightEye.position.set(0.07, 1.18, 0.15);
-        group.add(rightEye);
+        const eyeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.08, 0.05, 0.18);
+        headGroup.add(leftEye);
+        
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.08, 0.05, 0.18);
+        headGroup.add(rightEye);
 
-        // === 手臂 ===
-        // 左手臂
-        const leftArm = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.06, 0.06, 0.4, 6),
-            skinMaterial
-        );
-        leftArm.position.set(-0.35, 0.75, 0);
-        leftArm.rotation.z = 0.3;
-        leftArm.castShadow = true;
-        group.add(leftArm);
-        group.userData.leftArm = leftArm;
+        // 4. 手臂 (带关节)
+        // 左臂容器 (肩膀)
+        const leftShoulder = new THREE.Group();
+        leftShoulder.position.set(-0.28, 1.1, 0);
+        bodyGroup.add(leftShoulder);
+        group.userData.leftShoulder = leftShoulder;
 
-        // 右手臂
-        const rightArm = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.06, 0.06, 0.4, 6),
-            skinMaterial
-        );
-        rightArm.position.set(0.35, 0.75, 0);
-        rightArm.rotation.z = -0.3;
-        rightArm.castShadow = true;
-        group.add(rightArm);
-        group.userData.rightArm = rightArm;
+        // 左大臂
+        const armUpperGeo = new THREE.BoxGeometry(0.12, 0.35, 0.12);
+        const leftUpperArm = new THREE.Mesh(armUpperGeo, bodyMaterial);
+        leftUpperArm.position.y = -0.15; // 向下延伸
+        leftShoulder.add(leftUpperArm);
 
-        // === 腿 ===
-        // 左腿容器（用于动画旋转）
-        const leftLegPivot = new THREE.Group();
-        leftLegPivot.position.set(-0.12, 0.4, 0);
-        group.add(leftLegPivot);
-        group.userData.leftLegPivot = leftLegPivot;
+        // 左肘关节
+        const leftElbow = new THREE.Group();
+        leftElbow.position.set(0, -0.35, 0);
+        leftShoulder.add(leftElbow);
+        group.userData.leftElbow = leftElbow;
+
+        // 左小臂
+        const armLowerGeo = new THREE.BoxGeometry(0.1, 0.3, 0.1);
+        const leftLowerArm = new THREE.Mesh(armLowerGeo, skinMaterial);
+        leftLowerArm.position.y = -0.15;
+        leftElbow.add(leftLowerArm);
+
+        // 手
+        const handGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+        const leftHand = new THREE.Mesh(handGeo, skinMaterial);
+        leftHand.position.y = -0.32;
+        leftElbow.add(leftHand);
+
+
+        // 右臂容器 (肩膀)
+        const rightShoulder = new THREE.Group();
+        rightShoulder.position.set(0.28, 1.1, 0);
+        bodyGroup.add(rightShoulder);
+        group.userData.rightShoulder = rightShoulder;
+
+        // 右大臂
+        const rightUpperArm = new THREE.Mesh(armUpperGeo, bodyMaterial);
+        rightUpperArm.position.y = -0.15;
+        rightShoulder.add(rightUpperArm);
+
+        // 右肘关节
+        const rightElbow = new THREE.Group();
+        rightElbow.position.set(0, -0.35, 0);
+        rightShoulder.add(rightElbow);
+        group.userData.rightElbow = rightElbow;
+
+        // 右小臂
+        const rightLowerArm = new THREE.Mesh(armLowerGeo, skinMaterial);
+        rightLowerArm.position.y = -0.15;
+        rightElbow.add(rightLowerArm);
+
+        // 右手
+        const rightHand = new THREE.Mesh(handGeo, skinMaterial);
+        rightHand.position.y = -0.32;
+        rightElbow.add(rightHand);
+
+
+        // 5. 腿部 (带关节)
+        // 左腿容器 (髋关节)
+        const leftHip = new THREE.Group();
+        leftHip.position.set(-0.1, 0.6, 0);
+        bodyGroup.add(leftHip);
+        group.userData.leftHip = leftHip;
 
         // 左大腿
-        const leftUpperLeg = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.08, 0.07, 0.25, 6),
-            bodyMaterial
-        );
-        leftUpperLeg.position.y = -0.12;
-        leftLegPivot.add(leftUpperLeg);
+        const legUpperGeo = new THREE.BoxGeometry(0.14, 0.35, 0.14);
+        const leftUpperLeg = new THREE.Mesh(legUpperGeo, pantsMaterial);
+        leftUpperLeg.position.y = -0.15;
+        leftHip.add(leftUpperLeg);
+
+        // 左膝盖
+        const leftKnee = new THREE.Group();
+        leftKnee.position.set(0, -0.32, 0);
+        leftHip.add(leftKnee);
+        group.userData.leftKnee = leftKnee;
 
         // 左小腿
-        const leftLowerLeg = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.06, 0.05, 0.25, 6),
-            skinMaterial
-        );
-        leftLowerLeg.position.y = -0.28;
-        leftLegPivot.add(leftLowerLeg);
+        const legLowerGeo = new THREE.BoxGeometry(0.12, 0.3, 0.12);
+        const leftLowerLeg = new THREE.Mesh(legLowerGeo, skinMaterial); // 或者裤子材质
+        leftLowerLeg.position.y = -0.15;
+        leftKnee.add(leftLowerLeg);
 
         // 左脚
-        const leftFoot = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.06, 0.18),
-            shoeMaterial
-        );
-        leftFoot.position.set(0, -0.4, 0.04);
-        leftLegPivot.add(leftFoot);
+        const footGeo = new THREE.BoxGeometry(0.13, 0.1, 0.22);
+        const leftFoot = new THREE.Mesh(footGeo, shoeMaterial);
+        leftFoot.position.set(0, -0.32, 0.05); // 稍微向前
+        leftKnee.add(leftFoot);
 
-        // 右腿容器
-        const rightLegPivot = new THREE.Group();
-        rightLegPivot.position.set(0.12, 0.4, 0);
-        group.add(rightLegPivot);
-        group.userData.rightLegPivot = rightLegPivot;
+
+        // 右腿容器 (髋关节)
+        const rightHip = new THREE.Group();
+        rightHip.position.set(0.1, 0.6, 0);
+        bodyGroup.add(rightHip);
+        group.userData.rightHip = rightHip;
 
         // 右大腿
-        const rightUpperLeg = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.08, 0.07, 0.25, 6),
-            bodyMaterial
-        );
-        rightUpperLeg.position.y = -0.12;
-        rightLegPivot.add(rightUpperLeg);
+        const rightUpperLeg = new THREE.Mesh(legUpperGeo, pantsMaterial);
+        rightUpperLeg.position.y = -0.15;
+        rightHip.add(rightUpperLeg);
+
+        // 右膝盖
+        const rightKnee = new THREE.Group();
+        rightKnee.position.set(0, -0.32, 0);
+        rightHip.add(rightKnee);
+        group.userData.rightKnee = rightKnee;
 
         // 右小腿
-        const rightLowerLeg = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.06, 0.05, 0.25, 6),
-            skinMaterial
-        );
-        rightLowerLeg.position.y = -0.28;
-        rightLegPivot.add(rightLowerLeg);
+        const rightLowerLeg = new THREE.Mesh(legLowerGeo, skinMaterial);
+        rightLowerLeg.position.y = -0.15;
+        rightKnee.add(rightLowerLeg);
 
         // 右脚
-        const rightFoot = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.06, 0.18),
-            shoeMaterial
-        );
-        rightFoot.position.set(0, -0.4, 0.04);
-        rightLegPivot.add(rightFoot);
+        const rightFoot = new THREE.Mesh(footGeo, shoeMaterial);
+        rightFoot.position.set(0, -0.32, 0.05);
+        rightKnee.add(rightFoot);
+
 
         // 设置初始位置
         group.position.set(playerData.x || 0, 0, playerData.z || 0);
 
         // 头顶球挂载点
         const ballHolder = new THREE.Group();
-        ballHolder.position.set(0, 1.5, 0);  // 头顶上方
+        ballHolder.position.set(0, 0.5, 0); // 相对头部
+        headGroup.add(ballHolder);
         ballHolder.visible = false;
-        group.add(ballHolder);
         group.userData.ballHolder = ballHolder;
 
         // 创建头顶的球（初始隐藏）
@@ -453,8 +506,8 @@ export class BallGameScene {
 
         // 创建名字标签
         const nameSprite = this.createNameSprite(playerData.name || `玩家${playerData.id.slice(-4)}`, color);
-        nameSprite.position.set(0, 1.8, 0);  // 头顶上方
-        group.add(nameSprite);
+        nameSprite.position.set(0, 1.0, 0);  // 相对头部
+        headGroup.add(nameSprite);
         group.userData.nameSprite = nameSprite;
 
         this.scene.add(group);
@@ -464,56 +517,148 @@ export class BallGameScene {
     }
 
     /**
-     * 更新玩家动画
+     * 更新玩家动画（优化版）
      */
     updatePlayerAnimations(deltaTime) {
         this.playerMeshes.forEach((player) => {
             const anim = player.userData.animState;
             if (!anim) return;
 
-            const leftLeg = player.userData.leftLegPivot;
-            const rightLeg = player.userData.rightLegPivot;
-            const leftArm = player.userData.leftArm;
-            const rightArm = player.userData.rightArm;
+            // 获取关节
+            const { 
+                bodyGroup, headGroup,
+                leftShoulder, rightShoulder, leftElbow, rightElbow,
+                leftHip, rightHip, leftKnee, rightKnee 
+            } = player.userData;
 
-            // 计算移动速度
+            // 状态判断
+            const isHolding = !!player.userData.holdingBallId;
+
+            // 计算移动
             const dx = anim.targetX - player.position.x;
             const dz = anim.targetZ - player.position.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
-
-            // 判断是否在移动
+            
             anim.walking = dist > 0.05;
+            anim.idleTime += deltaTime;
 
+            // 1. 移动逻辑
             if (anim.walking) {
+                // 重置待机时间
+                anim.idleTime = 0;
+                
                 // 平滑移动
                 const moveSpeed = 0.15;
                 player.position.x += dx * moveSpeed;
                 player.position.z += dz * moveSpeed;
 
-                // 面向移动方向
+                // 面向移动方向 (平滑旋转)
                 if (dist > 0.1) {
                     const targetRotation = Math.atan2(dx, dz);
-                    player.rotation.y = targetRotation;
+                    let rotDiff = targetRotation - player.rotation.y;
+                    
+                    // 处理角度跳变 (-PI 到 PI)
+                    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+                    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+                    
+                    player.rotation.y += rotDiff * 0.2;
                 }
 
-                // 走路动画
-                anim.walkPhase += deltaTime * 12;
-                const legSwing = Math.sin(anim.walkPhase) * 0.5;
-                const armSwing = Math.sin(anim.walkPhase) * 0.3;
+                // === 跑步动画 ===
+                anim.walkPhase += deltaTime * 15; // 跑步频率
 
-                if (leftLeg) leftLeg.rotation.x = legSwing;
-                if (rightLeg) rightLeg.rotation.x = -legSwing;
-                if (leftArm) leftArm.rotation.x = -armSwing;
-                if (rightArm) rightArm.rotation.x = armSwing;
+                // 身体倾斜
+                if (bodyGroup) bodyGroup.rotation.x = 0.2; // 向前倾
+
+                // 腿部摆动
+                const legAmp = 1.0; // 腿摆动幅度
+                const kneeAmp = 1.2; // 膝盖弯曲幅度
+
+                const leftCycle = Math.sin(anim.walkPhase);
+                const rightCycle = Math.sin(anim.walkPhase + Math.PI);
+
+                if (leftHip) leftHip.rotation.x = leftCycle * legAmp;
+                if (rightHip) rightHip.rotation.x = rightCycle * legAmp;
+
+                // 膝盖弯曲 (只在腿向后摆时弯曲)
+                if (leftKnee) leftKnee.rotation.x = Math.max(0, leftCycle) * kneeAmp;
+                if (rightKnee) rightKnee.rotation.x = Math.max(0, rightCycle) * kneeAmp;
+
+                // 手臂摆动 (如果不持球)
+                if (!isHolding) {
+                    const armAmp = 0.8;
+                    
+                    if (leftShoulder) {
+                        leftShoulder.rotation.x = rightCycle * armAmp;
+                        leftShoulder.rotation.z = 0.1; 
+                    }
+                    if (rightShoulder) {
+                        rightShoulder.rotation.x = leftCycle * armAmp;
+                        rightShoulder.rotation.z = -0.1;
+                    }
+                    // 手肘自然弯曲
+                    if (leftElbow) leftElbow.rotation.x = -Math.abs(rightCycle * 0.5) - 0.2;
+                    if (rightElbow) rightElbow.rotation.x = -Math.abs(leftCycle * 0.5) - 0.2;
+                }
+
+                // 跑步时的上下颠簸
+                if (bodyGroup) bodyGroup.position.y = Math.abs(Math.sin(anim.walkPhase * 2)) * 0.05;
+
             } else {
-                // 静止时恢复姿势
-                if (leftLeg) leftLeg.rotation.x *= 0.8;
-                if (rightLeg) rightLeg.rotation.x *= 0.8;
-                if (leftArm) leftArm.rotation.x *= 0.8;
-                if (rightArm) rightArm.rotation.x *= 0.8;
+                // === 待机动画 ===
+                const breathSpeed = 2;
+                const breathAmp = 0.03;
+                const breath = Math.sin(anim.idleTime * breathSpeed);
+
+                // 身体呼吸起伏
+                if (bodyGroup) {
+                    bodyGroup.rotation.x *= 0.8; // 恢复直立
+                    bodyGroup.position.y = breath * breathAmp; // 上下浮动
+                }
+
+                // 恢复下肢位置
+                const recoverSpeed = 0.1;
+                if (leftHip) leftHip.rotation.x *= (1 - recoverSpeed);
+                if (rightHip) rightHip.rotation.x *= (1 - recoverSpeed);
+                if (leftKnee) leftKnee.rotation.x *= (1 - recoverSpeed);
+                if (rightKnee) rightKnee.rotation.x *= (1 - recoverSpeed);
+
+                // 手臂摆动 (如果不持球)
+                if (!isHolding) {
+                    if (leftShoulder) {
+                        leftShoulder.rotation.x = Math.sin(anim.idleTime * 1.5) * 0.05; 
+                        leftShoulder.rotation.z = 0.05;
+                    }
+                    if (rightShoulder) {
+                        rightShoulder.rotation.x = Math.sin(anim.idleTime * 1.5 + Math.PI) * 0.05;
+                        rightShoulder.rotation.z = -0.05;
+                    }
+                    if (leftElbow) leftElbow.rotation.x = -0.1;
+                    if (rightElbow) rightElbow.rotation.x = -0.1;
+                }
             }
 
-            // 跳跃动画
+            // === 持球动作 (覆盖手臂动画) ===
+            if (isHolding) {
+                // 双手举过头顶
+                const armLiftAngle = -2.8; // 向上举起
+                const armSpread = 0.1; // 稍微向内收，托住球
+                
+                if (leftShoulder) {
+                    leftShoulder.rotation.x = armLiftAngle;
+                    leftShoulder.rotation.z = -armSpread; 
+                }
+                if (rightShoulder) {
+                    rightShoulder.rotation.x = armLiftAngle;
+                    rightShoulder.rotation.z = armSpread;
+                }
+                
+                // 手肘微曲
+                if (leftElbow) leftElbow.rotation.x = -0.3;
+                if (rightElbow) rightElbow.rotation.x = -0.3;
+            }
+
+            // === 跳跃动画 ===
             if (anim.jumping) {
                 anim.jumpHeight += anim.jumpVelocity * deltaTime;
                 anim.jumpVelocity -= 15 * deltaTime; // 重力
@@ -524,6 +669,21 @@ export class BallGameScene {
                 }
 
                 player.position.y = anim.jumpHeight;
+                
+                // 跳跃姿态
+                if (anim.jumpHeight > 0.1) {
+                    // 屈腿
+                    if (leftHip) leftHip.rotation.x = -0.5;
+                    if (rightHip) rightHip.rotation.x = -0.5;
+                    if (leftKnee) leftKnee.rotation.x = 1.5;
+                    if (rightKnee) rightKnee.rotation.x = 1.5;
+                    
+                    // 如果不持球，空中举手
+                    if (!isHolding) {
+                        if (leftShoulder) leftShoulder.rotation.x = -2.5;
+                        if (rightShoulder) rightShoulder.rotation.x = -2.5;
+                    }
+                }
             }
         });
     }
@@ -580,7 +740,7 @@ export class BallGameScene {
         const geometry = new THREE.SphereGeometry(0.3, 16, 16);
         const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
         const ball = new THREE.Mesh(geometry, material);
-        ball.position.set(fromX, 1.5, fromZ);
+        ball.position.set(fromX, 1.7, fromZ);
         ball.castShadow = true;
         this.scene.add(ball);
 
@@ -624,7 +784,7 @@ export class BallGameScene {
                 const x = fly.startX + (fly.endX - fly.startX) * t;
                 const z = fly.startZ + (fly.endZ - fly.startZ) * t;
                 // 抛物线高度：最高点在中间
-                const y = 1.5 + Math.sin(t * Math.PI) * 3;
+                const y = 1.7 + Math.sin(t * Math.PI) * 3;
 
                 fly.ball.position.set(x, y, z);
                 fly.ball.rotation.x += deltaTime * 10;
